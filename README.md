@@ -35,6 +35,13 @@ agent-notes scan
 agent-notes scan --json
 ```
 
+Scan another repository without changing directories:
+
+```sh
+agent-notes scan --path ../other-repo
+agent-notes scan --path ../other-repo --json
+```
+
 Generate notes:
 
 ```sh
@@ -65,6 +72,7 @@ AGENTS.md
 ## CLI Commands
 
 - `scan`: prints a human-readable summary for the current directory.
+- `scan --path <dir>`: scans a different directory.
 - `scan --json`: prints the same analysis as JSON.
 - `init`: writes `AGENTS.md` and `.agent-notes/*.md`.
 - `init --dry-run`: prints the write plan without changing files.
@@ -87,9 +95,8 @@ Limitations:
 
 ## Roadmap
 
-The next release is planned as a boring-useful v0.2:
+The next releases are planned as boring-useful improvements:
 
-- `agent-notes scan --path <dir>`
 - Better monorepo detection
 - Generated-file provenance headers
 - `.agent-notes.json` config support

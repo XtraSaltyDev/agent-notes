@@ -1,6 +1,6 @@
-import { access, realpath } from "node:fs/promises";
+import { access, realpath, stat } from "node:fs/promises";
 import { constants } from "node:fs";
-import { join } from "node:path";
+import { resolve, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { Command } from "commander";
@@ -25,14 +25,23 @@ export function createProgram(): Command {
   program
     .name("agent-notes")
     .description("Generate deterministic repository notes for coding agents.")
-    .version("0.1.1");
+    .version("0.1.2");
 
   program
     .command("scan")
-    .description("Scan the current repository.")
+    .description("Scan a repository.")
+    .option("--path <dir>", "Scan a directory other than the current working directory.")
     .option("--json", "Print analysis as JSON.")
-    .action(async (options: { json?: boolean }) => {
-      const analysis = await scanRepo(process.cwd());
+    .action(async (options: { json?: boolean; path?: string }) => {
+      let rootDir: string;
+      try {
+        rootDir = await resolveScanPath(options.path);
+      } catch (error) {
+        program.error(error instanceof Error ? error.message : String(error));
+        return;
+      }
+
+      const analysis = await scanRepo(rootDir);
       if (options.json) {
         console.log(JSON.stringify(analysis, null, 2));
         return;
@@ -129,6 +138,24 @@ async function fileExists(path: string): Promise<boolean> {
 
 function joinValues(values: string[]): string {
   return values.length > 0 ? values.join(", ") : "none detected";
+}
+
+async function resolveScanPath(path?: string): Promise<string> {
+  const rootDir = resolve(path ?? process.cwd());
+
+  try {
+    const rootStat = await stat(rootDir);
+    if (!rootStat.isDirectory()) {
+      throw new Error(`Path is not a directory: ${rootDir}`);
+    }
+  } catch (error) {
+    if (error instanceof Error && error.message.startsWith("Path is not a directory")) {
+      throw error;
+    }
+    throw new Error(`Path not found: ${rootDir}`);
+  }
+
+  return rootDir;
 }
 
 async function isCliEntryPoint(): Promise<boolean> {

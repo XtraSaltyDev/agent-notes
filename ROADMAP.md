@@ -5,8 +5,6 @@
 Keep v0.2 boring-useful: improve the everyday CLI workflow without widening the
 tool into a large platform.
 
-- Add `agent-notes scan --path <dir>` so users can inspect a repository without
-  changing their shell location.
 - Improve monorepo detection, especially package manager workspaces and nested
   package boundaries.
 - Add a generated-file provenance header so reviewers can tell which files came
