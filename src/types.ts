@@ -1,0 +1,37 @@
+export type PackageManager = "npm" | "pnpm" | "yarn" | "unknown";
+
+export type RepoCommand = {
+  name: string;
+  command: string;
+  source: string;
+};
+
+export type RepoAnalysis = {
+  rootDir: string;
+  projectTypes: string[];
+  packageManager?: PackageManager;
+  languages: string[];
+  frameworks: string[];
+  commands: RepoCommand[];
+  importantFiles: string[];
+  warnings: string[];
+};
+
+export type GeneratedFile = {
+  path: string;
+  content: string;
+};
+
+export type WriteAction = "created" | "skipped" | "overwritten" | "unchanged";
+
+export type WritePlanEntry = {
+  path: string;
+  action: WriteAction;
+  reason?: string;
+};
+
+export type WritePlan = {
+  dryRun: boolean;
+  force: boolean;
+  entries: WritePlanEntry[];
+};
