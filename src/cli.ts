@@ -8,7 +8,9 @@ import { Command } from "commander";
 import { generateFiles } from "./generate/index.js";
 import { scanRepo } from "./scan/scanRepo.js";
 import type { RepoAnalysis, WritePlan } from "./types.js";
+import { planUpdates } from "./write/planUpdates.js";
 import { planWrites } from "./write/planWrites.js";
+import { writeUpdates } from "./write/writeUpdates.js";
 import { writeFiles } from "./write/writeFiles.js";
 
 const EXPECTED_FILES = [
@@ -25,7 +27,7 @@ export function createProgram(): Command {
   program
     .name("agent-notes")
     .description("Generate deterministic repository notes for coding agents.")
-    .version("0.1.2");
+    .version("0.1.3");
 
   program
     .command("scan")
@@ -35,7 +37,7 @@ export function createProgram(): Command {
     .action(async (options: { json?: boolean; path?: string }) => {
       let rootDir: string;
       try {
-        rootDir = await resolveScanPath(options.path);
+        rootDir = await resolveRepoPath(options.path);
       } catch (error) {
         program.error(error instanceof Error ? error.message : String(error));
         return;
@@ -70,6 +72,39 @@ export function createProgram(): Command {
         console.log("Warning: --force allows overwriting existing generated files.");
       }
       console.log(formatWritePlan(plan));
+    });
+
+  program
+    .command("update")
+    .description("Refresh existing agent-notes generated sections.")
+    .option(
+      "--path <dir>",
+      "Update a directory other than the current working directory."
+    )
+    .option("--dry-run", "Show the update plan without writing files.")
+    .option("--force", "Overwrite expected generated files that do not have markers.")
+    .action(async (options: { dryRun?: boolean; force?: boolean; path?: string }) => {
+      let rootDir: string;
+      try {
+        rootDir = await resolveRepoPath(options.path);
+      } catch (error) {
+        program.error(error instanceof Error ? error.message : String(error));
+        return;
+      }
+
+      const analysis = await scanRepo(rootDir);
+      const files = generateFiles(analysis);
+      const plan = await planUpdates(rootDir, files, {
+        dryRun: options.dryRun,
+        force: options.force
+      });
+
+      await writeUpdates(rootDir, files, plan);
+
+      if (options.force) {
+        console.log("Warning: --force allows overwriting files without markers.");
+      }
+      console.log(formatUpdatePlan(plan));
     });
 
   program
@@ -127,6 +162,27 @@ export function formatWritePlan(plan: WritePlan): string {
   return lines.join("\n");
 }
 
+export function formatUpdatePlan(plan: WritePlan): string {
+  const prefix = plan.dryRun ? "agent-notes update dry-run" : "agent-notes update";
+  const lines = [prefix];
+
+  for (const action of [
+    "created",
+    "updated",
+    "skipped",
+    "overwritten",
+    "unchanged"
+  ] as const) {
+    const entries = plan.entries.filter((entry) => entry.action === action);
+    lines.push(`${action}: ${entries.length}`);
+    for (const entry of entries) {
+      lines.push(`  - ${entry.path}${entry.reason ? ` (${entry.reason})` : ""}`);
+    }
+  }
+
+  return lines.join("\n");
+}
+
 async function fileExists(path: string): Promise<boolean> {
   try {
     await access(path, constants.F_OK);
@@ -140,7 +196,7 @@ function joinValues(values: string[]): string {
   return values.length > 0 ? values.join(", ") : "none detected";
 }
 
-async function resolveScanPath(path?: string): Promise<string> {
+async function resolveRepoPath(path?: string): Promise<string> {
   const rootDir = resolve(path ?? process.cwd());
 
   try {

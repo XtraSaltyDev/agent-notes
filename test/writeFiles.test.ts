@@ -37,7 +37,10 @@ describe("write planning", () => {
 
   it("reports unchanged when existing content matches", async () => {
     const rootDir = await fixtureDir();
-    await writeFile(join(rootDir, "AGENTS.md"), "same");
+    await writeFile(
+      join(rootDir, "AGENTS.md"),
+      ["<!-- agent-notes:start -->", "same", "<!-- agent-notes:end -->"].join("\n")
+    );
 
     const plan = await planWrites(rootDir, [{ path: "AGENTS.md", content: "same" }]);
 
@@ -66,6 +69,24 @@ describe("write planning", () => {
     await writeFiles(rootDir, files, plan);
 
     expect(plan.entries).toEqual([{ path: "AGENTS.md", action: "overwritten" }]);
-    await expect(readFile(join(rootDir, "AGENTS.md"), "utf8")).resolves.toBe("new");
+    await expect(readFile(join(rootDir, "AGENTS.md"), "utf8")).resolves.toBe(
+      ["<!-- agent-notes:start -->", "new", "<!-- agent-notes:end -->"].join("\n")
+    );
+  });
+
+  it("writes generated files inside agent-notes markers", async () => {
+    const rootDir = await fixtureDir();
+    const files = [{ path: "AGENTS.md", content: "generated content\n" }];
+    const plan = await planWrites(rootDir, files);
+
+    await writeFiles(rootDir, files, plan);
+
+    await expect(readFile(join(rootDir, "AGENTS.md"), "utf8")).resolves.toBe(
+      [
+        "<!-- agent-notes:start -->",
+        "generated content",
+        "<!-- agent-notes:end -->"
+      ].join("\n")
+    );
   });
 });

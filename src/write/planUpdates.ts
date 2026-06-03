@@ -3,17 +3,17 @@ import { join } from "node:path";
 
 import { pathExists } from "../scan/fsUtils.js";
 import type { GeneratedFile, WritePlan } from "../types.js";
-import { wrapManagedContent } from "./managedSections.js";
+import { replaceManagedSection, wrapManagedContent } from "./managedSections.js";
 
-export type PlanWriteOptions = {
+export type PlanUpdateOptions = {
   dryRun?: boolean;
   force?: boolean;
 };
 
-export async function planWrites(
+export async function planUpdates(
   rootDir: string,
   files: GeneratedFile[],
-  options: PlanWriteOptions = {}
+  options: PlanUpdateOptions = {}
 ): Promise<WritePlan> {
   const entries: WritePlan["entries"] = [];
   const force = options.force ?? false;
@@ -26,7 +26,17 @@ export async function planWrites(
     }
 
     const existingContent = await readFile(absolutePath, "utf8");
-    if (existingContent === wrapManagedContent(file.content)) {
+    const managedContent = replaceManagedSection(existingContent, file.content);
+    if (managedContent !== undefined) {
+      entries.push({
+        path: file.path,
+        action: managedContent === existingContent ? "unchanged" : "updated"
+      });
+      continue;
+    }
+
+    const generatedContent = wrapManagedContent(file.content);
+    if (existingContent === generatedContent) {
       entries.push({ path: file.path, action: "unchanged" });
       continue;
     }
@@ -39,7 +49,7 @@ export async function planWrites(
     entries.push({
       path: file.path,
       action: "skipped",
-      reason: "File exists. Use --force to overwrite."
+      reason: "File exists without agent-notes markers. Use --force to overwrite."
     });
   }
 

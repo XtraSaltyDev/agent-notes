@@ -22,7 +22,7 @@ export type GeneratedFile = {
   content: string;
 };
 
-export type WriteAction = "created" | "skipped" | "overwritten" | "unchanged";
+export type WriteAction = "created" | "updated" | "skipped" | "overwritten" | "unchanged";
 
 export type WritePlanEntry = {
   path: string;

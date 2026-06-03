@@ -50,6 +50,15 @@ agent-notes init --dry-run
 agent-notes init --force
 ```
 
+Refresh generated notes while preserving manual content outside generated
+sections:
+
+```sh
+agent-notes update
+agent-notes update --dry-run
+agent-notes update --force
+```
+
 Check whether expected note files exist:
 
 ```sh
@@ -68,6 +77,15 @@ AGENTS.md
 ```
 
 `init` refuses to overwrite existing files unless `--force` is passed.
+Generated content is wrapped in deterministic markers:
+
+```text
+<!-- agent-notes:start -->
+generated content
+<!-- agent-notes:end -->
+```
+
+`update` only refreshes content inside those markers unless `--force` is passed.
 
 ## CLI Commands
 
@@ -77,6 +95,9 @@ AGENTS.md
 - `init`: writes `AGENTS.md` and `.agent-notes/*.md`.
 - `init --dry-run`: prints the write plan without changing files.
 - `init --force`: overwrites expected generated files.
+- `update`: refreshes agent-notes generated sections.
+- `update --dry-run`: prints the update plan without changing files.
+- `update --force`: overwrites expected generated files that do not have markers.
 - `doctor`: reports which expected files are present or missing.
 
 ## v0.1 Detection Scope

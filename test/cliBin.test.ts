@@ -1,4 +1,4 @@
-import { chmod, mkdtemp, symlink, writeFile } from "node:fs/promises";
+import { chmod, mkdtemp, readFile, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -19,7 +19,7 @@ describe("published CLI bin", () => {
 
     const { stdout } = await execFileAsync(binPath, ["--version"]);
 
-    expect(stdout.trim()).toBe("0.1.2");
+    expect(stdout.trim()).toBe("0.1.3");
   });
 
   it("scans the directory passed with --path", async () => {
@@ -63,5 +63,66 @@ describe("published CLI bin", () => {
     ).rejects.not.toMatchObject({
       stderr: expect.stringContaining("at resolveScanPath")
     });
+  });
+
+  it("updates existing managed files through the CLI", async () => {
+    const rootDir = await mkdtemp(join(tmpdir(), "agent-notes-bin-"));
+    const binPath = join(rootDir, "agent-notes");
+
+    await writeFile(
+      join(rootDir, "package.json"),
+      `${JSON.stringify({ scripts: { test: "vitest run" } }, null, 2)}\n`
+    );
+    await writeFile(
+      join(rootDir, "AGENTS.md"),
+      [
+        "Manual intro",
+        "<!-- agent-notes:start -->",
+        "old generated content",
+        "<!-- agent-notes:end -->",
+        "Manual outro"
+      ].join("\n")
+    );
+    await chmod(builtCli, 0o755);
+    await symlink(builtCli, binPath);
+
+    const { stdout } = await execFileAsync(binPath, ["update", "--path", rootDir]);
+
+    expect(stdout).toContain("agent-notes update");
+    expect(stdout).toContain("updated: 1");
+    const updatedContent = await readFile(join(rootDir, "AGENTS.md"), "utf8");
+    expect(updatedContent).toContain("Manual intro");
+    expect(updatedContent).toContain("Read `.agent-notes/project.md`");
+    expect(updatedContent).toContain("Manual outro");
+  });
+
+  it("reports update dry-runs without writing through the CLI", async () => {
+    const rootDir = await mkdtemp(join(tmpdir(), "agent-notes-bin-"));
+    const binPath = join(rootDir, "agent-notes");
+    const original = [
+      "Manual intro",
+      "<!-- agent-notes:start -->",
+      "old generated content",
+      "<!-- agent-notes:end -->"
+    ].join("\n");
+
+    await writeFile(
+      join(rootDir, "package.json"),
+      `${JSON.stringify({ scripts: { test: "vitest run" } }, null, 2)}\n`
+    );
+    await writeFile(join(rootDir, "AGENTS.md"), original);
+    await chmod(builtCli, 0o755);
+    await symlink(builtCli, binPath);
+
+    const { stdout } = await execFileAsync(binPath, [
+      "update",
+      "--dry-run",
+      "--path",
+      rootDir
+    ]);
+
+    expect(stdout).toContain("agent-notes update dry-run");
+    expect(stdout).toContain("updated: 1");
+    await expect(readFile(join(rootDir, "AGENTS.md"), "utf8")).resolves.toBe(original);
   });
 });

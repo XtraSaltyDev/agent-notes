@@ -1,0 +1,97 @@
+import { mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
+
+import { planUpdates } from "../src/write/planUpdates.js";
+import { writeUpdates } from "../src/write/writeUpdates.js";
+
+async function fixtureDir(): Promise<string> {
+  return mkdtemp(join(tmpdir(), "agent-notes-update-"));
+}
+
+describe("update planning", () => {
+  it("updates generated sections while preserving manual content", async () => {
+    const rootDir = await fixtureDir();
+    await writeFile(
+      join(rootDir, "AGENTS.md"),
+      [
+        "Manual intro",
+        "<!-- agent-notes:start -->",
+        "old generated content",
+        "<!-- agent-notes:end -->",
+        "Manual outro"
+      ].join("\n")
+    );
+
+    const files = [{ path: "AGENTS.md", content: "new generated content\n" }];
+    const plan = await planUpdates(rootDir, files);
+
+    await writeUpdates(rootDir, files, plan);
+
+    expect(plan.entries).toEqual([{ path: "AGENTS.md", action: "updated" }]);
+    await expect(readFile(join(rootDir, "AGENTS.md"), "utf8")).resolves.toBe(
+      [
+        "Manual intro",
+        "<!-- agent-notes:start -->",
+        "new generated content",
+        "<!-- agent-notes:end -->",
+        "Manual outro"
+      ].join("\n")
+    );
+  });
+
+  it("dry-run reports changes without writing", async () => {
+    const rootDir = await fixtureDir();
+    const original = [
+      "Manual intro",
+      "<!-- agent-notes:start -->",
+      "old generated content",
+      "<!-- agent-notes:end -->"
+    ].join("\n");
+    await writeFile(join(rootDir, "AGENTS.md"), original);
+
+    const files = [{ path: "AGENTS.md", content: "new generated content\n" }];
+    const plan = await planUpdates(rootDir, files, { dryRun: true });
+
+    await writeUpdates(rootDir, files, plan);
+
+    expect(plan.entries).toEqual([{ path: "AGENTS.md", action: "updated" }]);
+    await expect(readFile(join(rootDir, "AGENTS.md"), "utf8")).resolves.toBe(original);
+  });
+
+  it("refuses unsafe overwrite without force", async () => {
+    const rootDir = await fixtureDir();
+    await writeFile(join(rootDir, "AGENTS.md"), "manual file without markers");
+
+    const plan = await planUpdates(rootDir, [
+      { path: "AGENTS.md", content: "generated content\n" }
+    ]);
+
+    expect(plan.entries).toEqual([
+      {
+        path: "AGENTS.md",
+        action: "skipped",
+        reason: "File exists without agent-notes markers. Use --force to overwrite."
+      }
+    ]);
+  });
+
+  it("force rewrites expected generated files", async () => {
+    const rootDir = await fixtureDir();
+    await writeFile(join(rootDir, "AGENTS.md"), "manual file without markers");
+
+    const files = [{ path: "AGENTS.md", content: "generated content\n" }];
+    const plan = await planUpdates(rootDir, files, { force: true });
+
+    await writeUpdates(rootDir, files, plan);
+
+    expect(plan.entries).toEqual([{ path: "AGENTS.md", action: "overwritten" }]);
+    await expect(readFile(join(rootDir, "AGENTS.md"), "utf8")).resolves.toBe(
+      [
+        "<!-- agent-notes:start -->",
+        "generated content",
+        "<!-- agent-notes:end -->"
+      ].join("\n")
+    );
+  });
+});
