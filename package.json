@@ -4,7 +4,7 @@
   "description": "Deterministic repo notes for AI coding agents and human contributors.",
   "type": "module",
   "bin": {
-    "agent-notes": "./dist/cli.js"
+    "agent-notes": "dist/cli.js"
   },
   "files": [
     "dist",
