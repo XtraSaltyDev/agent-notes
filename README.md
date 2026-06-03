@@ -87,10 +87,15 @@ Limitations:
 
 ## Roadmap
 
-- More project-type detectors.
-- Better monorepo summaries.
-- Optional custom templates.
-- Stable machine-readable output for integrations.
+The next release is planned as a boring-useful v0.2:
+
+- `agent-notes scan --path <dir>`
+- Better monorepo detection
+- Generated-file provenance headers
+- `.agent-notes.json` config support
+- README examples with realistic output
+
+See [ROADMAP.md](ROADMAP.md) for scope notes.
 
 ## Contributing
 

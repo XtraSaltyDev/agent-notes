@@ -3,6 +3,14 @@
   "version": "0.1.0",
   "description": "Deterministic repo notes for AI coding agents and human contributors.",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/XtraSaltyDev/agent-notes.git"
+  },
+  "homepage": "https://github.com/XtraSaltyDev/agent-notes#readme",
+  "bugs": {
+    "url": "https://github.com/XtraSaltyDev/agent-notes/issues"
+  },
   "bin": {
     "agent-notes": "dist/cli.js"
   },
