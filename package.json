@@ -1,6 +1,6 @@
 {
   "name": "agent-notes",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Deterministic repo notes for AI coding agents and human contributors.",
   "type": "module",
   "repository": {
