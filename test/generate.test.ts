@@ -69,6 +69,9 @@ describe("Markdown generators", () => {
     expect(markdown).toContain("## Detected Conventions");
     expect(markdown).toContain("Use `npm` for dependency changes.");
     expect(markdown).toContain("## User-Maintained Notes");
+    expect(markdown).toContain(
+      "TODO: Review this section and replace placeholders before committing."
+    );
   });
 
   it("includes guardrails and user-maintained risks", () => {
@@ -77,5 +80,8 @@ describe("Markdown generators", () => {
     expect(markdown).toContain("## Generated Guardrails");
     expect(markdown).toContain("Multiple lockfiles detected");
     expect(markdown).toContain("## User-Maintained Risk Notes");
+    expect(markdown).toContain(
+      "TODO: Review this section and replace placeholders before committing."
+    );
   });
 });

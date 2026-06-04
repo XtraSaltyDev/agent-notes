@@ -11,9 +11,13 @@ without widening the tool into a large platform.
 
 ## Future Scope
 
-- Deepen monorepo detection beyond package-manager workspaces and immediate
-  package boundaries.
+- High priority: keep deepening monorepo detection beyond the current
+  `package.json`, `pnpm-workspace.yaml`, `*`, `**`, and common-directory support,
+  especially for mixed-language repos and non-Node package boundaries.
 - Add config file support with `.agent-notes.json` for stable local preferences.
+- Expand `doctor` beyond presence checks: report managed marker status, generated
+  section version drift, and stale generated content compared with the current
+  scan.
 - Continue hardening generated-file writes so the CLI only mutates expected
   repository paths.
 

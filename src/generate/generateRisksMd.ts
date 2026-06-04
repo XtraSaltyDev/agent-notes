@@ -17,6 +17,7 @@ ${bulletList(analysis.warnings)}
 
 ## User-Maintained Risk Notes
 
+- TODO: Review this section and replace placeholders before committing.
 - Add project-specific risks here.
 `;
 }

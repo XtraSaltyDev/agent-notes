@@ -153,10 +153,12 @@ generated content
 ## v0.2 Detection Scope
 
 `agent-notes` focuses on Node.js and TypeScript repositories. It detects common
-files such as `package.json`, lockfiles, `tsconfig.json`, Vite/Next configs,
-ESLint/Prettier configs, test configs, `README.md`, and GitHub Actions
-workflows. It also detects basic package-manager workspaces such as
-`packages/*` and lists workspace packages that contain their own `package.json`.
+files such as `package.json`, lockfiles, `pnpm-workspace.yaml`, `tsconfig.json`,
+Vite/Next configs, ESLint/Prettier configs, test configs, `README.md`, and
+GitHub Actions workflows. It also detects package-manager workspaces from
+`package.json` and `pnpm-workspace.yaml`, supports `*` and `**` workspace
+patterns, and infers common `apps/*`, `packages/*`, and `services/*` layouts
+when those directories contain their own `package.json`.
 
 Limitations:
 

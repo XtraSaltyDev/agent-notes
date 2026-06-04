@@ -1,8 +1,9 @@
-import { readFile } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 
 import { describe, expect, it } from "vitest";
 
 interface PackageJson {
+  author?: string;
   exports?: Record<string, unknown>;
   main?: string;
   types?: string;
@@ -13,6 +14,12 @@ async function readPackageJson(): Promise<PackageJson> {
 }
 
 describe("package metadata", () => {
+  it("does not publish an empty author field", async () => {
+    const packageJson = await readPackageJson();
+
+    expect("author" in packageJson).toBe(false);
+  });
+
   it("declares the importable library entry points", async () => {
     const packageJson = await readPackageJson();
 
@@ -29,5 +36,17 @@ describe("package metadata", () => {
       },
       "./package.json": "./package.json"
     });
+  });
+
+  it("bundles package metadata without runtime JSON import attributes", async () => {
+    const distFiles = (await readdir("dist"))
+      .filter((file) => file.endsWith(".js"))
+      .sort();
+    const bundledJavaScript = (
+      await Promise.all(distFiles.map((file) => readFile(`dist/${file}`, "utf8")))
+    ).join("\n");
+
+    expect(bundledJavaScript).not.toMatch(/from\s+["']\.\.\/package\.json["']/);
+    expect(bundledJavaScript).not.toMatch(/with\s*\{\s*type:\s*["']json["']\s*\}/);
   });
 });

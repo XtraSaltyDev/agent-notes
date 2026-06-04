@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, symlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 
@@ -118,5 +118,24 @@ describe("update planning", () => {
     await expect(
       planUpdates(rootDir, [{ path: "../outside.md", content: "outside" }])
     ).rejects.toThrow("Refusing to write outside repository root: ../outside.md");
+  });
+
+  it("refuses to plan updates through an existing target symlink", async () => {
+    const rootDir = await fixtureDir();
+    const outsidePath = join(await fixtureDir(), "outside.md");
+    await writeFile(
+      outsidePath,
+      [
+        "<!-- agent-notes:start -->",
+        "old generated content",
+        "<!-- agent-notes:end -->"
+      ].join("\n")
+    );
+    await symlink(outsidePath, join(rootDir, "AGENTS.md"));
+
+    await expect(
+      planUpdates(rootDir, [{ path: "AGENTS.md", content: "generated content" }])
+    ).rejects.toThrow("Refusing to write through symbolic link: AGENTS.md");
+    await expect(readFile(outsidePath, "utf8")).resolves.toContain("old generated content");
   });
 });

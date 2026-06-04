@@ -46,7 +46,6 @@
     "repository",
     "context"
   ],
-  "author": "",
   "license": "MIT",
   "dependencies": {
     "commander": "^14.0.2"

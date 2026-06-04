@@ -20,6 +20,7 @@ ${typescriptNodeNotes(analysis)}
 
 ## User-Maintained Notes
 
+- TODO: Review this section and replace placeholders before committing.
 - Add project-specific conventions here.
 `;
 }

@@ -1,4 +1,4 @@
-import { readdir } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 import { join, posix } from "node:path";
 
 import { directoryExists, fromRoot, readJsonFile } from "./fsUtils.js";
@@ -9,14 +9,20 @@ type PackageJson = {
   workspaces?: string[] | { packages?: string[] };
 };
 
+const INFERRED_WORKSPACE_PATTERNS = ["apps/*", "packages/*", "services/*"];
+
 export async function detectWorkspaces(
   rootDir: string
 ): Promise<WorkspaceAnalysis | undefined> {
   const packageJson = await readJsonFile<PackageJson>(fromRoot(rootDir, "package.json"));
-  const patterns = normalizeWorkspacePatterns(packageJson?.workspaces);
-  if (patterns.length === 0) {
-    return undefined;
-  }
+  const configuredPatterns = uniqueValues([
+    ...normalizeWorkspacePatterns(packageJson?.workspaces),
+    ...(await readPnpmWorkspacePatterns(rootDir))
+  ]);
+  const patterns =
+    configuredPatterns.length > 0
+      ? configuredPatterns
+      : await inferWorkspacePatterns(rootDir);
 
   const packages = (
     await Promise.all(
@@ -25,6 +31,10 @@ export async function detectWorkspaces(
   )
     .flat()
     .sort((left, right) => left.path.localeCompare(right.path));
+
+  if (patterns.length === 0 || (configuredPatterns.length === 0 && packages.length === 0)) {
+    return undefined;
+  }
 
   return {
     patterns,
@@ -40,37 +50,146 @@ function normalizeWorkspacePatterns(workspaces: PackageJson["workspaces"]): stri
   return workspaces?.packages?.filter((pattern) => pattern.trim().length > 0) ?? [];
 }
 
+async function readPnpmWorkspacePatterns(rootDir: string): Promise<string[]> {
+  const workspacePath = fromRoot(rootDir, "pnpm-workspace.yaml");
+  if (!(await directoryExists(rootDir))) {
+    return [];
+  }
+
+  let raw: string;
+  try {
+    raw = await readFile(workspacePath, "utf8");
+  } catch {
+    return [];
+  }
+
+  const patterns: string[] = [];
+  let inPackages = false;
+  for (const line of raw.split(/\r?\n/)) {
+    if (/^\s*packages\s*:\s*$/.test(line)) {
+      inPackages = true;
+      continue;
+    }
+
+    if (!inPackages) {
+      continue;
+    }
+
+    if (/^\S/.test(line)) {
+      break;
+    }
+
+    const match = line.match(/^\s*-\s*["']?([^"']+)["']?\s*$/);
+    const pattern = match?.[1]?.trim();
+    if (pattern && !pattern.startsWith("!")) {
+      patterns.push(pattern);
+    }
+  }
+
+  return patterns;
+}
+
+async function inferWorkspacePatterns(rootDir: string): Promise<string[]> {
+  const detectedPatterns: string[] = [];
+  for (const pattern of INFERRED_WORKSPACE_PATTERNS) {
+    const packages = await detectPackagesForPattern(rootDir, pattern);
+    if (packages.length > 0) {
+      detectedPatterns.push(pattern);
+    }
+  }
+
+  return detectedPatterns;
+}
+
 async function detectPackagesForPattern(
   rootDir: string,
   pattern: string
 ): Promise<WorkspacePackage[]> {
-  if (!pattern.endsWith("/*")) {
+  const packagePaths = await matchWorkspacePackagePaths(rootDir, pattern);
+  const packages = await Promise.all(
+    packagePaths.map(async (packagePath) => {
+      const packageJsonPath = fromRoot(rootDir, posix.join(packagePath, "package.json"));
+      const packageJson = await readJsonFile<PackageJson>(packageJsonPath);
+      return packageJson ? { path: packagePath, name: packageJson.name } : undefined;
+    })
+  );
+
+  return packages.filter((workspacePackage) => workspacePackage !== undefined);
+}
+
+async function matchWorkspacePackagePaths(
+  rootDir: string,
+  pattern: string
+): Promise<string[]> {
+  const segments = pattern.split("/").filter((segment) => segment.length > 0);
+  const matches = await matchPatternSegments(rootDir, "", segments);
+  return uniqueValues(matches);
+}
+
+async function matchPatternSegments(
+  rootDir: string,
+  currentPath: string,
+  segments: string[]
+): Promise<string[]> {
+  if (segments.length === 0) {
+    return [currentPath];
+  }
+
+  const [segment, ...remainingSegments] = segments;
+  if (segment === undefined) {
+    return [currentPath];
+  }
+
+  if (segment === "*") {
+    const directories = await listChildDirectories(join(rootDir, currentPath));
+    return (
+      await Promise.all(
+        directories.map((directory) =>
+          matchPatternSegments(rootDir, posixJoin(currentPath, directory), remainingSegments)
+        )
+      )
+    ).flat();
+  }
+
+  if (segment === "**") {
+    const zeroSegmentMatches = await matchPatternSegments(
+      rootDir,
+      currentPath,
+      remainingSegments
+    );
+    const directories = await listChildDirectories(join(rootDir, currentPath));
+    const nestedMatches = (
+      await Promise.all(
+        directories.map((directory) =>
+          matchPatternSegments(rootDir, posixJoin(currentPath, directory), segments)
+        )
+      )
+    ).flat();
+
+    return [...zeroSegmentMatches, ...nestedMatches];
+  }
+
+  const nextPath = posixJoin(currentPath, segment);
+  if (!(await directoryExists(join(rootDir, nextPath)))) {
     return [];
   }
 
-  const parentPath = pattern.slice(0, -2);
-  const absoluteParent = join(rootDir, parentPath);
-  if (!(await directoryExists(absoluteParent))) {
+  return matchPatternSegments(rootDir, nextPath, remainingSegments);
+}
+
+async function listChildDirectories(path: string): Promise<string[]> {
+  if (!(await directoryExists(path))) {
     return [];
   }
 
-  const entries = await readdir(absoluteParent, { withFileTypes: true });
-  const packages: WorkspacePackage[] = [];
+  const entries = await readdir(path, { withFileTypes: true });
+  return entries.filter((entry) => entry.isDirectory()).map((entry) => entry.name);
+}
 
-  for (const entry of entries) {
-    if (!entry.isDirectory()) {
-      continue;
-    }
+function posixJoin(left: string, right: string): string {
+  return left.length > 0 ? posix.join(left, right) : right;
+}
 
-    const packagePath = posix.join(parentPath, entry.name);
-    const packageJsonPath = fromRoot(rootDir, posix.join(packagePath, "package.json"));
-    const packageJson = await readJsonFile<PackageJson>(packageJsonPath);
-    if (!packageJson) {
-      continue;
-    }
-
-    packages.push({ path: packagePath, name: packageJson.name });
-  }
-
-  return packages;
+function uniqueValues(values: string[]): string[] {
+  return Array.from(new Set(values));
 }

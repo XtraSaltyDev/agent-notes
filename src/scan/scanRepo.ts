@@ -11,6 +11,7 @@ const EXACT_IMPORTANT_FILES = [
   "package.json",
   "package-lock.json",
   "pnpm-lock.yaml",
+  "pnpm-workspace.yaml",
   "yarn.lock",
   "tsconfig.json",
   "README.md"

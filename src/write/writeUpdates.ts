@@ -3,7 +3,7 @@ import { dirname } from "node:path";
 
 import type { GeneratedFile, WritePlan } from "../types.js";
 import { replaceManagedSection, wrapManagedContent } from "./managedSections.js";
-import { resolveWritablePath } from "./pathSafety.js";
+import { resolveSafeWritablePath } from "./pathSafety.js";
 
 export async function writeUpdates(
   rootDir: string,
@@ -30,7 +30,7 @@ export async function writeUpdates(
       continue;
     }
 
-    const absolutePath = resolveWritablePath(rootDir, file.path);
+    const absolutePath = await resolveSafeWritablePath(rootDir, file.path);
     await mkdir(dirname(absolutePath), { recursive: true });
 
     if (entry.action === "updated") {

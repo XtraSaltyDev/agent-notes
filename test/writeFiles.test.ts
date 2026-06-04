@@ -1,4 +1,4 @@
-import { access, mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { access, mkdtemp, readFile, symlink, writeFile } from "node:fs/promises";
 import { constants } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -122,5 +122,37 @@ describe("write planning", () => {
     await expect(
       planWrites(rootDir, [{ path: "../outside.md", content: "outside" }])
     ).rejects.toThrow("Refusing to write outside repository root: ../outside.md");
+  });
+
+  it("refuses to plan writes through an existing target symlink", async () => {
+    const rootDir = await fixtureDir();
+    const outsidePath = join(await fixtureDir(), "outside.md");
+    await writeFile(outsidePath, "outside");
+    await symlink(outsidePath, join(rootDir, "AGENTS.md"));
+
+    await expect(
+      planWrites(rootDir, [{ path: "AGENTS.md", content: "generated" }], {
+        force: true
+      })
+    ).rejects.toThrow("Refusing to write through symbolic link: AGENTS.md");
+    await expect(readFile(outsidePath, "utf8")).resolves.toBe("outside");
+  });
+
+  it("refuses to write through an existing parent directory symlink", async () => {
+    const rootDir = await fixtureDir();
+    const outsideDir = await fixtureDir();
+    const files = [{ path: ".agent-notes/project.md", content: "project" }];
+    const plan = {
+      dryRun: false,
+      force: false,
+      entries: [{ path: ".agent-notes/project.md", action: "created" as const }]
+    };
+
+    await symlink(outsideDir, join(rootDir, ".agent-notes"));
+
+    await expect(writeFiles(rootDir, files, plan)).rejects.toThrow(
+      "Refusing to write through symbolic link: .agent-notes/project.md"
+    );
+    await expect(exists(join(outsideDir, "project.md"))).resolves.toBe(false);
   });
 });

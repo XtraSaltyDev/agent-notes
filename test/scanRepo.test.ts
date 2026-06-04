@@ -139,4 +139,60 @@ describe("repository scanning", () => {
       ]
     });
   });
+
+  it("detects pnpm workspace file patterns and recursive packages", async () => {
+    const rootDir = await fixtureDir();
+    await mkdir(join(rootDir, "apps", "web"), { recursive: true });
+    await mkdir(join(rootDir, "packages", "features", "auth"), { recursive: true });
+    await writeJson(join(rootDir, "package.json"), {
+      scripts: { test: "vitest run" }
+    });
+    await writeFile(
+      join(rootDir, "pnpm-workspace.yaml"),
+      ["packages:", "  - apps/*", "  - packages/**"].join("\n")
+    );
+    await writeJson(join(rootDir, "apps", "web", "package.json"), {
+      name: "@demo/web"
+    });
+    await writeJson(join(rootDir, "packages", "features", "auth", "package.json"), {
+      name: "@demo/auth"
+    });
+
+    const analysis = await scanRepo(rootDir);
+
+    expect(analysis.workspaces).toEqual({
+      patterns: ["apps/*", "packages/**"],
+      packages: [
+        { path: "apps/web", name: "@demo/web" },
+        { path: "packages/features/auth", name: "@demo/auth" }
+      ]
+    });
+    expect(analysis.importantFiles).toContain("pnpm-workspace.yaml");
+  });
+
+  it("infers common monorepo package directories without workspace config", async () => {
+    const rootDir = await fixtureDir();
+    await mkdir(join(rootDir, "apps", "web"), { recursive: true });
+    await mkdir(join(rootDir, "packages", "core"), { recursive: true });
+    await writeJson(join(rootDir, "package.json"), {
+      scripts: { test: "vitest run" }
+    });
+    await writeJson(join(rootDir, "apps", "web", "package.json"), {
+      name: "@demo/web"
+    });
+    await writeJson(join(rootDir, "packages", "core", "package.json"), {
+      name: "@demo/core"
+    });
+
+    const analysis = await scanRepo(rootDir);
+
+    expect(analysis.projectTypes).toEqual(["Node.js", "Workspace"]);
+    expect(analysis.workspaces).toEqual({
+      patterns: ["apps/*", "packages/*"],
+      packages: [
+        { path: "apps/web", name: "@demo/web" },
+        { path: "packages/core", name: "@demo/core" }
+      ]
+    });
+  });
 });

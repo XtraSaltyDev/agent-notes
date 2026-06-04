@@ -3,7 +3,7 @@ import { dirname } from "node:path";
 
 import type { GeneratedFile, WritePlan } from "../types.js";
 import { wrapManagedContent } from "./managedSections.js";
-import { resolveWritablePath } from "./pathSafety.js";
+import { resolveSafeWritablePath } from "./pathSafety.js";
 
 export async function writeFiles(
   rootDir: string,
@@ -26,7 +26,7 @@ export async function writeFiles(
       continue;
     }
 
-    const absolutePath = resolveWritablePath(rootDir, file.path);
+    const absolutePath = await resolveSafeWritablePath(rootDir, file.path);
     await mkdir(dirname(absolutePath), { recursive: true });
     await writeFile(absolutePath, wrapManagedContent(file.content));
   }
