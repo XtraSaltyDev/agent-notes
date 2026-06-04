@@ -40,6 +40,20 @@ describe("Markdown generators", () => {
     expect(markdown).toContain("Multiple lockfiles detected");
   });
 
+  it("includes workspace packages when detected", () => {
+    const markdown = generateProjectMd({
+      ...analysis,
+      workspaces: {
+        patterns: ["packages/*"],
+        packages: [{ path: "packages/cli", name: "@demo/cli" }]
+      }
+    });
+
+    expect(markdown).toContain("## Detected Workspaces");
+    expect(markdown).toContain("- `packages/*`");
+    expect(markdown).toContain("- packages/cli (`@demo/cli`)");
+  });
+
   it("includes command sources and the detection caveat", () => {
     const markdown = generateCommandsMd(analysis);
 

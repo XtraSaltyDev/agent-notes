@@ -18,6 +18,10 @@ ${bulletList(analysis.languages)}
 
 ${bulletList(analysis.frameworks)}
 
+## Detected Workspaces
+
+${formatWorkspaces(analysis)}
+
 ## Detected Package Manager
 
 - ${valueOrUnknown(analysis.packageManager)}
@@ -30,4 +34,23 @@ ${bulletList(analysis.importantFiles)}
 
 ${bulletList(analysis.warnings)}
 `;
+}
+
+function formatWorkspaces(analysis: RepoAnalysis): string {
+  if (!analysis.workspaces) {
+    return "- none detected";
+  }
+
+  const lines = [
+    "Patterns:",
+    ...analysis.workspaces.patterns.map((pattern) => `- \`${pattern}\``),
+    "",
+    "Packages:",
+    ...analysis.workspaces.packages.map((workspacePackage) => {
+      const name = workspacePackage.name ? ` (\`${workspacePackage.name}\`)` : "";
+      return `- ${workspacePackage.path}${name}`;
+    })
+  ];
+
+  return lines.join("\n");
 }

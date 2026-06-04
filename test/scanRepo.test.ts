@@ -96,4 +96,31 @@ describe("repository scanning", () => {
       ])
     );
   });
+
+  it("detects package manager workspaces and package names", async () => {
+    const rootDir = await fixtureDir();
+    await mkdir(join(rootDir, "packages", "cli"), { recursive: true });
+    await mkdir(join(rootDir, "packages", "core"), { recursive: true });
+    await writeJson(join(rootDir, "package.json"), {
+      workspaces: ["packages/*"],
+      scripts: { test: "vitest run" }
+    });
+    await writeJson(join(rootDir, "packages", "cli", "package.json"), {
+      name: "@demo/cli"
+    });
+    await writeJson(join(rootDir, "packages", "core", "package.json"), {
+      name: "@demo/core"
+    });
+
+    const analysis = await scanRepo(rootDir);
+
+    expect(analysis.projectTypes).toEqual(["Node.js", "Workspace"]);
+    expect(analysis.workspaces).toEqual({
+      patterns: ["packages/*"],
+      packages: [
+        { path: "packages/cli", name: "@demo/cli" },
+        { path: "packages/core", name: "@demo/core" }
+      ]
+    });
+  });
 });

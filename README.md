@@ -43,6 +43,7 @@ Root: /path/to/repo
 Project types: Node.js
 Languages: TypeScript
 Frameworks: Vitest
+Workspaces: none detected
 Package manager: npm
 Important files: package.json, tsconfig.json
 Commands: test (npm run test)
@@ -138,7 +139,8 @@ generated content
 `agent-notes` focuses on Node.js and TypeScript repositories. It detects common
 files such as `package.json`, lockfiles, `tsconfig.json`, Vite/Next configs,
 ESLint/Prettier configs, test configs, `README.md`, and GitHub Actions
-workflows.
+workflows. It also detects basic package-manager workspaces such as
+`packages/*` and lists workspace packages that contain their own `package.json`.
 
 Limitations:
 
@@ -151,7 +153,7 @@ Limitations:
 
 The next releases are planned as boring-useful improvements:
 
-- Better monorepo detection
+- Deeper monorepo detection
 - Generated-file provenance headers
 - `.agent-notes.json` config support
 

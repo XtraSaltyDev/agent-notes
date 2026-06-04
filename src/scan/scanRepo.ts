@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { detectCommands } from "./detectCommands.js";
 import { detectNode } from "./detectNode.js";
 import { detectPackageManager } from "./detectPackageManager.js";
+import { detectWorkspaces } from "./detectWorkspaces.js";
 import { directoryExists, fromRoot, listRootFiles, pathExists } from "./fsUtils.js";
 import type { RepoAnalysis } from "../types.js";
 
@@ -26,20 +27,27 @@ const IMPORTANT_PATTERNS = [
 ];
 
 export async function scanRepo(rootDir = process.cwd()): Promise<RepoAnalysis> {
-  const [nodeDetection, packageManagerDetection, importantFiles] = await Promise.all([
-    detectNode(rootDir),
-    detectPackageManager(rootDir),
-    detectImportantFiles(rootDir)
-  ]);
+  const [nodeDetection, packageManagerDetection, importantFiles, workspaces] =
+    await Promise.all([
+      detectNode(rootDir),
+      detectPackageManager(rootDir),
+      detectImportantFiles(rootDir),
+      detectWorkspaces(rootDir)
+    ]);
 
   const commands = await detectCommands(rootDir, packageManagerDetection.packageManager);
+  const projectTypes = [...nodeDetection.projectTypes];
+  if (workspaces && !projectTypes.includes("Workspace")) {
+    projectTypes.push("Workspace");
+  }
 
   return {
     rootDir,
-    projectTypes: nodeDetection.projectTypes,
+    projectTypes,
     packageManager: packageManagerDetection.packageManager,
     languages: nodeDetection.languages,
     frameworks: nodeDetection.frameworks,
+    workspaces,
     commands,
     importantFiles,
     warnings: packageManagerDetection.warnings

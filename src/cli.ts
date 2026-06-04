@@ -182,11 +182,22 @@ export function formatAnalysisSummary(analysis: RepoAnalysis): string {
     `Project types: ${joinValues(analysis.projectTypes)}`,
     `Languages: ${joinValues(analysis.languages)}`,
     `Frameworks: ${joinValues(analysis.frameworks)}`,
+    `Workspaces: ${formatWorkspaceSummary(analysis)}`,
     `Package manager: ${analysis.packageManager ?? "not detected"}`,
     `Important files: ${joinValues(analysis.importantFiles)}`,
     `Commands: ${analysis.commands.map((command) => `${command.name} (${command.command})`).join(", ") || "none detected"}`,
     `Warnings: ${joinValues(analysis.warnings)}`
   ].join("\n");
+}
+
+function formatWorkspaceSummary(analysis: RepoAnalysis): string {
+  if (!analysis.workspaces) {
+    return "none detected";
+  }
+
+  const packageCount = analysis.workspaces.packages.length;
+  const patternSummary = analysis.workspaces.patterns.join(", ");
+  return `${packageCount} package${packageCount === 1 ? "" : "s"} (${patternSummary})`;
 }
 
 export function formatWritePlan(plan: WritePlan): string {

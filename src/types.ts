@@ -12,9 +12,20 @@ export type RepoAnalysis = {
   packageManager?: PackageManager;
   languages: string[];
   frameworks: string[];
+  workspaces?: WorkspaceAnalysis;
   commands: RepoCommand[];
   importantFiles: string[];
   warnings: string[];
+};
+
+export type WorkspaceAnalysis = {
+  patterns: string[];
+  packages: WorkspacePackage[];
+};
+
+export type WorkspacePackage = {
+  path: string;
+  name?: string;
 };
 
 export type GeneratedFile = {

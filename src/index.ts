@@ -3,6 +3,8 @@ export type {
   PackageManager,
   RepoAnalysis,
   RepoCommand,
+  WorkspaceAnalysis,
+  WorkspacePackage,
   WriteAction,
   WritePlan,
   WritePlanEntry

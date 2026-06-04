@@ -24,6 +24,7 @@ describe("CLI output formatting", () => {
       Project types: Node.js
       Languages: TypeScript
       Frameworks: Vitest
+      Workspaces: none detected
       Package manager: npm
       Important files: package.json, tsconfig.json
       Commands: test (npm run test)
