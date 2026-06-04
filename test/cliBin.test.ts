@@ -19,7 +19,7 @@ describe("published CLI bin", () => {
 
     const { stdout } = await execFileAsync(binPath, ["--version"]);
 
-    expect(stdout.trim()).toBe("0.1.6");
+    expect(stdout.trim()).toBe("0.1.7");
   });
 
   it("scans the directory passed with --path", async () => {
@@ -124,6 +124,31 @@ describe("published CLI bin", () => {
     expect(stdout).toContain("agent-notes update dry-run");
     expect(stdout).toContain("updated: 1");
     await expect(readFile(join(rootDir, "AGENTS.md"), "utf8")).resolves.toBe(original);
+  });
+
+  it("initializes the directory passed with init --path", async () => {
+    const rootDir = await mkdtemp(join(tmpdir(), "agent-notes-bin-"));
+    const targetDir = await mkdtemp(join(tmpdir(), "agent-notes-target-"));
+    const binPath = join(rootDir, "agent-notes");
+
+    await writeFile(
+      join(targetDir, "package.json"),
+      `${JSON.stringify({ scripts: { test: "vitest run" } }, null, 2)}\n`
+    );
+    await chmod(builtCli, 0o755);
+    await symlink(builtCli, binPath);
+
+    const { stdout } = await execFileAsync(binPath, ["init", "--path", targetDir], {
+      cwd: rootDir
+    });
+
+    expect(stdout).toContain("agent-notes init");
+    await expect(readFile(join(targetDir, "AGENTS.md"), "utf8")).resolves.toContain(
+      "Read `.agent-notes/project.md`"
+    );
+    await expect(
+      readFile(join(targetDir, ".agent-notes", "commands.md"), "utf8")
+    ).resolves.toContain("test");
   });
 
   it("checks the directory passed to doctor with --path", async () => {

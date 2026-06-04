@@ -46,6 +46,7 @@ Generate notes:
 
 ```sh
 agent-notes init
+agent-notes init --path ../other-repo
 agent-notes init --dry-run
 agent-notes init --force
 ```
@@ -96,6 +97,7 @@ generated content
 - `scan --path <dir>`: scans a different directory.
 - `scan --json`: prints the same analysis as JSON.
 - `init`: writes `AGENTS.md` and `.agent-notes/*.md`.
+- `init --path <dir>`: writes notes in a different directory.
 - `init --dry-run`: prints the write plan without changing files.
 - `init --force`: overwrites expected generated files.
 - `update`: refreshes agent-notes generated sections.

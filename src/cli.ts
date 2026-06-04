@@ -56,10 +56,21 @@ export function createProgram(): Command {
   program
     .command("init")
     .description("Create AGENTS.md and .agent-notes Markdown files.")
+    .option(
+      "--path <dir>",
+      "Initialize a directory other than the current working directory."
+    )
     .option("--dry-run", "Show the write plan without writing files.")
     .option("--force", "Overwrite existing generated files.")
-    .action(async (options: { dryRun?: boolean; force?: boolean }) => {
-      const rootDir = process.cwd();
+    .action(async (options: { dryRun?: boolean; force?: boolean; path?: string }) => {
+      let rootDir: string;
+      try {
+        rootDir = await resolveRepoPath(options.path);
+      } catch (error) {
+        program.error(error instanceof Error ? error.message : String(error));
+        return;
+      }
+
       const analysis = await scanRepo(rootDir);
       const files = generateFiles(analysis);
       const plan = await planWrites(rootDir, files, {
