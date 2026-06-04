@@ -80,6 +80,7 @@ AGENTS.md
 ```
 
 `init` refuses to overwrite existing files unless `--force` is passed.
+When `--force` overwrites files, the CLI names the overwritten paths.
 Generated content is wrapped in deterministic markers:
 
 ```text

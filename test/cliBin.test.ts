@@ -19,7 +19,7 @@ describe("published CLI bin", () => {
 
     const { stdout } = await execFileAsync(binPath, ["--version"]);
 
-    expect(stdout.trim()).toBe("0.1.7");
+    expect(stdout.trim()).toBe("0.1.8");
   });
 
   it("scans the directory passed with --path", async () => {
@@ -149,6 +149,21 @@ describe("published CLI bin", () => {
     await expect(
       readFile(join(targetDir, ".agent-notes", "commands.md"), "utf8")
     ).resolves.toContain("test");
+  });
+
+  it("names files overwritten by init --force", async () => {
+    const rootDir = await mkdtemp(join(tmpdir(), "agent-notes-bin-"));
+    const binPath = join(rootDir, "agent-notes");
+
+    await writeFile(join(rootDir, "AGENTS.md"), "manual notes");
+    await chmod(builtCli, 0o755);
+    await symlink(builtCli, binPath);
+
+    const { stdout } = await execFileAsync(binPath, ["init", "--force"], {
+      cwd: rootDir
+    });
+
+    expect(stdout).toContain("Warning: --force overwrote AGENTS.md");
   });
 
   it("checks the directory passed to doctor with --path", async () => {

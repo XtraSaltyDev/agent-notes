@@ -80,8 +80,9 @@ export function createProgram(): Command {
 
       await writeFiles(rootDir, files, plan);
 
-      if (options.force) {
-        console.log("Warning: --force allows overwriting existing generated files.");
+      const forceWarning = formatForceWarning(plan);
+      if (forceWarning) {
+        console.log(forceWarning);
       }
       console.log(formatWritePlan(plan));
     });
@@ -113,8 +114,9 @@ export function createProgram(): Command {
 
       await writeUpdates(rootDir, files, plan);
 
-      if (options.force) {
-        console.log("Warning: --force allows overwriting files without markers.");
+      const forceWarning = formatForceWarning(plan);
+      if (forceWarning) {
+        console.log(forceWarning);
       }
       console.log(formatUpdatePlan(plan));
     });
@@ -221,6 +223,22 @@ export function formatUpdatePlan(plan: WritePlan): string {
   }
 
   return lines.join("\n");
+}
+
+export function formatForceWarning(plan: WritePlan): string | undefined {
+  if (!plan.force) {
+    return undefined;
+  }
+
+  const overwritten = plan.entries
+    .filter((entry) => entry.action === "overwritten")
+    .map((entry) => entry.path);
+
+  if (overwritten.length === 0) {
+    return undefined;
+  }
+
+  return `Warning: --force overwrote ${overwritten.join(", ")}`;
 }
 
 async function fileExists(path: string): Promise<boolean> {
