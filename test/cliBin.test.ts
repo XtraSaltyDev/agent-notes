@@ -19,7 +19,7 @@ describe("published CLI bin", () => {
 
     const { stdout } = await execFileAsync(binPath, ["--version"]);
 
-    expect(stdout.trim()).toBe("0.1.3");
+    expect(stdout.trim()).toBe("0.1.4");
   });
 
   it("scans the directory passed with --path", async () => {
@@ -124,5 +124,22 @@ describe("published CLI bin", () => {
     expect(stdout).toContain("agent-notes update dry-run");
     expect(stdout).toContain("updated: 1");
     await expect(readFile(join(rootDir, "AGENTS.md"), "utf8")).resolves.toBe(original);
+  });
+
+  it("checks the directory passed to doctor with --path", async () => {
+    const rootDir = await mkdtemp(join(tmpdir(), "agent-notes-bin-"));
+    const targetDir = await mkdtemp(join(tmpdir(), "agent-notes-target-"));
+    const binPath = join(rootDir, "agent-notes");
+
+    await writeFile(join(targetDir, "AGENTS.md"), "manual notes");
+    await chmod(builtCli, 0o755);
+    await symlink(builtCli, binPath);
+
+    await expect(
+      execFileAsync(binPath, ["doctor", "--path", targetDir], { cwd: rootDir })
+    ).rejects.toMatchObject({
+      code: 1,
+      stdout: expect.stringContaining("present  AGENTS.md")
+    });
   });
 });

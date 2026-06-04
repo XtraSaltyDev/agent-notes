@@ -63,6 +63,7 @@ Check whether expected note files exist:
 
 ```sh
 agent-notes doctor
+agent-notes doctor --path ../other-repo
 ```
 
 ## Generated Files
@@ -99,6 +100,7 @@ generated content
 - `update --dry-run`: prints the update plan without changing files.
 - `update --force`: overwrites expected generated files that do not have markers.
 - `doctor`: reports which expected files are present or missing.
+- `doctor --path <dir>`: checks expected files in a different directory.
 
 ## v0.1 Detection Scope
 

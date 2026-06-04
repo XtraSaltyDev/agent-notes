@@ -11,6 +11,8 @@ tool into a large platform.
   from `agent-notes` and which version produced them.
 - Add config file support with `.agent-notes.json` for stable local preferences.
 - Improve README examples with realistic command output.
+- Continue hardening generated-file writes so the CLI only mutates expected
+  repository paths.
 
 ## Not In v0.2
 

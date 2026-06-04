@@ -27,7 +27,7 @@ export function createProgram(): Command {
   program
     .name("agent-notes")
     .description("Generate deterministic repository notes for coding agents.")
-    .version("0.1.3");
+    .version("0.1.4");
 
   program
     .command("scan")
@@ -110,11 +110,20 @@ export function createProgram(): Command {
   program
     .command("doctor")
     .description("Check whether expected agent-notes files exist.")
-    .action(async () => {
+    .option("--path <dir>", "Check a directory other than the current working directory.")
+    .action(async (options: { path?: string }) => {
+      let rootDir: string;
+      try {
+        rootDir = await resolveRepoPath(options.path);
+      } catch (error) {
+        program.error(error instanceof Error ? error.message : String(error));
+        return;
+      }
+
       const statuses = await Promise.all(
         EXPECTED_FILES.map(async (path) => ({
           path,
-          exists: await fileExists(join(process.cwd(), path))
+          exists: await fileExists(join(rootDir, path))
         }))
       );
       const missing = statuses.filter((status) => !status.exists);

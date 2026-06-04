@@ -1,9 +1,9 @@
 import { readFile } from "node:fs/promises";
-import { join } from "node:path";
 
 import { pathExists } from "../scan/fsUtils.js";
 import type { GeneratedFile, WritePlan } from "../types.js";
 import { replaceManagedSection, wrapManagedContent } from "./managedSections.js";
+import { resolveWritablePath } from "./pathSafety.js";
 
 export type PlanUpdateOptions = {
   dryRun?: boolean;
@@ -19,7 +19,7 @@ export async function planUpdates(
   const force = options.force ?? false;
 
   for (const file of files) {
-    const absolutePath = join(rootDir, file.path);
+    const absolutePath = resolveWritablePath(rootDir, file.path);
     if (!(await pathExists(absolutePath))) {
       entries.push({ path: file.path, action: "created" });
       continue;

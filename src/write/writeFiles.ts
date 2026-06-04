@@ -1,8 +1,9 @@
 import { mkdir, writeFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { dirname } from "node:path";
 
 import type { GeneratedFile, WritePlan } from "../types.js";
 import { wrapManagedContent } from "./managedSections.js";
+import { resolveWritablePath } from "./pathSafety.js";
 
 export async function writeFiles(
   rootDir: string,
@@ -25,7 +26,7 @@ export async function writeFiles(
       continue;
     }
 
-    const absolutePath = join(rootDir, file.path);
+    const absolutePath = resolveWritablePath(rootDir, file.path);
     await mkdir(dirname(absolutePath), { recursive: true });
     await writeFile(absolutePath, wrapManagedContent(file.content));
   }

@@ -89,4 +89,26 @@ describe("write planning", () => {
       ].join("\n")
     );
   });
+
+  it("refuses generated paths that escape the repository root", async () => {
+    const rootDir = await fixtureDir();
+    const files = [{ path: "../outside.md", content: "outside" }];
+    const plan = {
+      dryRun: false,
+      force: false,
+      entries: [{ path: "../outside.md", action: "created" as const }]
+    };
+
+    await expect(writeFiles(rootDir, files, plan)).rejects.toThrow(
+      "Refusing to write outside repository root: ../outside.md"
+    );
+  });
+
+  it("refuses unsafe generated paths while planning writes", async () => {
+    const rootDir = await fixtureDir();
+
+    await expect(
+      planWrites(rootDir, [{ path: "../outside.md", content: "outside" }])
+    ).rejects.toThrow("Refusing to write outside repository root: ../outside.md");
+  });
 });

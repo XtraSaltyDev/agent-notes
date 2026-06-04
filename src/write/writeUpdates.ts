@@ -1,8 +1,9 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { dirname } from "node:path";
 
 import type { GeneratedFile, WritePlan } from "../types.js";
 import { replaceManagedSection, wrapManagedContent } from "./managedSections.js";
+import { resolveWritablePath } from "./pathSafety.js";
 
 export async function writeUpdates(
   rootDir: string,
@@ -29,7 +30,7 @@ export async function writeUpdates(
       continue;
     }
 
-    const absolutePath = join(rootDir, file.path);
+    const absolutePath = resolveWritablePath(rootDir, file.path);
     await mkdir(dirname(absolutePath), { recursive: true });
 
     if (entry.action === "updated") {
