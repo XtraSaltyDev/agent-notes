@@ -17,7 +17,15 @@ export async function readJsonFile<T>(path: string): Promise<T | undefined> {
   }
 
   const raw = await readFile(path, "utf8");
-  return JSON.parse(raw) as T;
+  try {
+    return JSON.parse(raw) as T;
+  } catch (error) {
+    if (error instanceof SyntaxError) {
+      throw new Error(`Invalid JSON in ${path}: ${error.message}`);
+    }
+
+    throw error;
+  }
 }
 
 export async function listRootFiles(rootDir: string): Promise<string[]> {

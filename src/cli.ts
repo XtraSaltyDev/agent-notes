@@ -35,23 +35,19 @@ export function createProgram(): Command {
     .description("Scan a repository.")
     .option("--path <dir>", "Scan a directory other than the current working directory.")
     .option("--json", "Print analysis as JSON.")
-    .action(async (options: { json?: boolean; path?: string }) => {
-      let rootDir: string;
-      try {
-        rootDir = await resolveRepoPath(options.path);
-      } catch (error) {
-        program.error(error instanceof Error ? error.message : String(error));
-        return;
-      }
+    .action((options: { json?: boolean; path?: string }) =>
+      runCommandAction(program, async () => {
+        const rootDir = await resolveRepoPath(options.path);
 
-      const analysis = await scanRepo(rootDir);
-      if (options.json) {
-        console.log(JSON.stringify(analysis, null, 2));
-        return;
-      }
+        const analysis = await scanRepo(rootDir);
+        if (options.json) {
+          console.log(JSON.stringify(analysis, null, 2));
+          return;
+        }
 
-      console.log(formatAnalysisSummary(analysis));
-    });
+        console.log(formatAnalysisSummary(analysis));
+      })
+    );
 
   program
     .command("init")
@@ -62,30 +58,26 @@ export function createProgram(): Command {
     )
     .option("--dry-run", "Show the write plan without writing files.")
     .option("--force", "Overwrite existing generated files.")
-    .action(async (options: { dryRun?: boolean; force?: boolean; path?: string }) => {
-      let rootDir: string;
-      try {
-        rootDir = await resolveRepoPath(options.path);
-      } catch (error) {
-        program.error(error instanceof Error ? error.message : String(error));
-        return;
-      }
+    .action((options: { dryRun?: boolean; force?: boolean; path?: string }) =>
+      runCommandAction(program, async () => {
+        const rootDir = await resolveRepoPath(options.path);
 
-      const analysis = await scanRepo(rootDir);
-      const files = generateFiles(analysis);
-      const plan = await planWrites(rootDir, files, {
-        dryRun: options.dryRun,
-        force: options.force
-      });
+        const analysis = await scanRepo(rootDir);
+        const files = generateFiles(analysis);
+        const plan = await planWrites(rootDir, files, {
+          dryRun: options.dryRun,
+          force: options.force
+        });
 
-      await writeFiles(rootDir, files, plan);
+        await writeFiles(rootDir, files, plan);
 
-      const forceWarning = formatForceWarning(plan);
-      if (forceWarning) {
-        console.log(forceWarning);
-      }
-      console.log(formatWritePlan(plan));
-    });
+        const forceWarning = formatForceWarning(plan);
+        if (forceWarning) {
+          console.log(forceWarning);
+        }
+        console.log(formatWritePlan(plan));
+      })
+    );
 
   program
     .command("update")
@@ -96,83 +88,83 @@ export function createProgram(): Command {
     )
     .option("--dry-run", "Show the update plan without writing files.")
     .option("--force", "Overwrite expected generated files that do not have markers.")
-    .action(async (options: { dryRun?: boolean; force?: boolean; path?: string }) => {
-      let rootDir: string;
-      try {
-        rootDir = await resolveRepoPath(options.path);
-      } catch (error) {
-        program.error(error instanceof Error ? error.message : String(error));
-        return;
-      }
+    .action((options: { dryRun?: boolean; force?: boolean; path?: string }) =>
+      runCommandAction(program, async () => {
+        const rootDir = await resolveRepoPath(options.path);
 
-      const analysis = await scanRepo(rootDir);
-      const files = generateFiles(analysis);
-      const plan = await planUpdates(rootDir, files, {
-        dryRun: options.dryRun,
-        force: options.force
-      });
+        const analysis = await scanRepo(rootDir);
+        const files = generateFiles(analysis);
+        const plan = await planUpdates(rootDir, files, {
+          dryRun: options.dryRun,
+          force: options.force
+        });
 
-      await writeUpdates(rootDir, files, plan);
+        await writeUpdates(rootDir, files, plan);
 
-      const forceWarning = formatForceWarning(plan);
-      if (forceWarning) {
-        console.log(forceWarning);
-      }
-      console.log(formatUpdatePlan(plan));
-    });
+        const forceWarning = formatForceWarning(plan);
+        if (forceWarning) {
+          console.log(forceWarning);
+        }
+        console.log(formatUpdatePlan(plan));
+      })
+    );
 
   program
     .command("doctor")
     .description("Check whether expected agent-notes files exist.")
     .option("--path <dir>", "Check a directory other than the current working directory.")
     .option("--json", "Print doctor results as JSON.")
-    .action(async (options: { json?: boolean; path?: string }) => {
-      let rootDir: string;
-      try {
-        rootDir = await resolveRepoPath(options.path);
-      } catch (error) {
-        program.error(error instanceof Error ? error.message : String(error));
-        return;
-      }
+    .action((options: { json?: boolean; path?: string }) =>
+      runCommandAction(program, async () => {
+        const rootDir = await resolveRepoPath(options.path);
 
-      const statuses = await Promise.all(
-        EXPECTED_FILES.map(async (path) => ({
-          path,
-          exists: await fileExists(join(rootDir, path))
-        }))
-      );
-      const missing = statuses.filter((status) => !status.exists);
-
-      if (options.json) {
-        console.log(
-          JSON.stringify(
-            {
-              rootDir,
-              files: statuses,
-              missing: missing.map((status) => status.path)
-            },
-            null,
-            2
-          )
+        const statuses = await Promise.all(
+          EXPECTED_FILES.map(async (path) => ({
+            path,
+            exists: await fileExists(join(rootDir, path))
+          }))
         );
+        const missing = statuses.filter((status) => !status.exists);
+
+        if (options.json) {
+          console.log(
+            JSON.stringify(
+              {
+                rootDir,
+                files: statuses,
+                missing: missing.map((status) => status.path)
+              },
+              null,
+              2
+            )
+          );
+          if (missing.length > 0) {
+            process.exitCode = 1;
+          }
+          return;
+        }
+
+        console.log("agent-notes doctor");
+        for (const status of statuses) {
+          console.log(`${status.exists ? "present" : "missing"}  ${status.path}`);
+        }
+
         if (missing.length > 0) {
+          console.log(`Missing files: ${missing.map((status) => status.path).join(", ")}`);
           process.exitCode = 1;
         }
-        return;
-      }
-
-      console.log("agent-notes doctor");
-      for (const status of statuses) {
-        console.log(`${status.exists ? "present" : "missing"}  ${status.path}`);
-      }
-
-      if (missing.length > 0) {
-        console.log(`Missing files: ${missing.map((status) => status.path).join(", ")}`);
-        process.exitCode = 1;
-      }
-    });
+      })
+    );
 
   return program;
+}
+
+async function runCommandAction(program: Command, action: () => Promise<void>): Promise<void> {
+  try {
+    await action();
+  } catch (error) {
+    program.error(error instanceof Error ? error.message : String(error));
+  }
 }
 
 export function formatAnalysisSummary(analysis: RepoAnalysis): string {

@@ -43,6 +43,30 @@ describe("published CLI bin", () => {
     expect(stdout).toContain("Commands: test (npm run test)");
   });
 
+  it("prints a clean error when package.json is malformed", async () => {
+    const rootDir = await mkdtemp(join(tmpdir(), "agent-notes-bin-"));
+    const binPath = join(rootDir, "agent-notes");
+
+    await writeFile(join(rootDir, "package.json"), "{ broken json");
+    await chmod(builtCli, 0o755);
+    await symlink(builtCli, binPath);
+
+    const error = await execFileAsync(binPath, ["scan"], { cwd: rootDir }).then(
+      () => undefined,
+      (error: unknown) => error as { code: number; stderr: string }
+    );
+
+    expect(error).toBeDefined();
+    if (!error) {
+      throw new Error("Expected scan to fail for malformed package.json.");
+    }
+    expect(error.code).toBe(1);
+    expect(error.stderr).toContain("Invalid JSON in");
+    expect(error.stderr).toContain("package.json");
+    expect(error.stderr).not.toContain("SyntaxError");
+    expect(error.stderr).not.toContain("\n    at ");
+  });
+
   it("fails when --path points to a missing directory", async () => {
     const rootDir = await mkdtemp(join(tmpdir(), "agent-notes-bin-"));
     const missingDir = join(rootDir, "missing");
