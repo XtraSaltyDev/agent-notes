@@ -62,11 +62,27 @@ describe("repository scanning", () => {
     const commands = await detectCommands(rootDir, "npm");
 
     expect(commands).toEqual([
-      { name: "install", command: "npm install", source: "package-lock.json" },
+      { name: "install", command: "npm install", source: "package.json" },
       { name: "build", command: "npm run build", source: "package.json" },
       { name: "test", command: "npm run test", source: "package.json" },
       { name: "dev", command: "npm run dev", source: "package.json" }
     ]);
+  });
+
+  it("uses the matching lockfile as the install source when present", async () => {
+    const rootDir = await fixtureDir();
+    await writeJson(join(rootDir, "package.json"), {
+      scripts: { test: "vitest run" }
+    });
+    await writeFile(join(rootDir, "package-lock.json"), "{}");
+
+    const analysis = await scanRepo(rootDir);
+
+    expect(analysis.commands).toContainEqual({
+      name: "install",
+      command: "npm install",
+      source: "package-lock.json"
+    });
   });
 
   it("summarizes Node and TypeScript repository signals", async () => {

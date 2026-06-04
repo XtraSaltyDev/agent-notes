@@ -35,7 +35,11 @@ export async function scanRepo(rootDir = process.cwd()): Promise<RepoAnalysis> {
       detectWorkspaces(rootDir)
     ]);
 
-  const commands = await detectCommands(rootDir, packageManagerDetection.packageManager);
+  const commands = await detectCommands(
+    rootDir,
+    packageManagerDetection.packageManager,
+    packageManagerDetection.lockfiles
+  );
   const projectTypes = [...nodeDetection.projectTypes];
   if (workspaces && !projectTypes.includes("Workspace")) {
     projectTypes.push("Workspace");

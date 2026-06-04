@@ -1,4 +1,4 @@
-import { fromRoot, readJsonFile } from "./fsUtils.js";
+import { fromRoot, pathExists, readJsonFile } from "./fsUtils.js";
 import { packageManagerLockfile } from "./detectPackageManager.js";
 import type { PackageManager, RepoCommand } from "../types.js";
 
@@ -10,7 +10,8 @@ const COMMON_SCRIPTS = ["build", "test", "lint", "format", "dev", "start", "type
 
 export async function detectCommands(
   rootDir: string,
-  packageManager?: PackageManager
+  packageManager?: PackageManager,
+  lockfiles?: string[]
 ): Promise<RepoCommand[]> {
   const packageJson = await readJsonFile<PackageJson>(fromRoot(rootDir, "package.json"));
   if (!packageJson) {
@@ -23,7 +24,7 @@ export async function detectCommands(
     commands.push({
       name: "install",
       command: `${packageManager} install`,
-      source: packageManagerLockfile(packageManager) ?? "package.json"
+      source: await installCommandSource(rootDir, packageManager, lockfiles)
     });
   }
 
@@ -38,6 +39,23 @@ export async function detectCommands(
   }
 
   return commands;
+}
+
+async function installCommandSource(
+  rootDir: string,
+  packageManager: Exclude<PackageManager, "unknown">,
+  lockfiles?: string[]
+): Promise<string> {
+  const lockfile = packageManagerLockfile(packageManager);
+  if (!lockfile) {
+    return "package.json";
+  }
+
+  if (lockfiles) {
+    return lockfiles.includes(lockfile) ? lockfile : "package.json";
+  }
+
+  return (await pathExists(fromRoot(rootDir, lockfile))) ? lockfile : "package.json";
 }
 
 function scriptCommand(
