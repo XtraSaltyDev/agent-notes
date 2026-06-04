@@ -18,5 +18,7 @@ export { generateCommandsMd } from "./generate/generateCommandsMd.js";
 export { generateConventionsMd } from "./generate/generateConventionsMd.js";
 export { generateProjectMd } from "./generate/generateProjectMd.js";
 export { generateRisksMd } from "./generate/generateRisksMd.js";
+export { planUpdates } from "./write/planUpdates.js";
 export { planWrites } from "./write/planWrites.js";
+export { writeUpdates } from "./write/writeUpdates.js";
 export { writeFiles } from "./write/writeFiles.js";

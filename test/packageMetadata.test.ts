@@ -6,6 +6,7 @@ interface PackageJson {
   author?: string;
   exports?: Record<string, unknown>;
   main?: string;
+  scripts?: Record<string, string>;
   types?: string;
 }
 
@@ -36,6 +37,13 @@ describe("package metadata", () => {
       },
       "./package.json": "./package.json"
     });
+  });
+
+  it("builds dist before tests inspect published JavaScript", async () => {
+    const packageJson = await readPackageJson();
+
+    expect(packageJson.scripts?.pretest).toBe("npm run build");
+    expect(packageJson.scripts?.test).toBe("vitest run");
   });
 
   it("bundles package metadata without runtime JSON import attributes", async () => {

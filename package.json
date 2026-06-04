@@ -1,6 +1,6 @@
 {
   "name": "agent-notes",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Deterministic repo notes for AI coding agents and human contributors.",
   "type": "module",
   "main": "dist/index.js",
@@ -34,6 +34,7 @@
   ],
   "scripts": {
     "build": "tsup",
+    "pretest": "npm run build",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",

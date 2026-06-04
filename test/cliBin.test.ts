@@ -19,7 +19,7 @@ describe("published CLI bin", () => {
 
     const { stdout } = await execFileAsync(binPath, ["--version"]);
 
-    expect(stdout.trim()).toBe("0.2.0");
+    expect(stdout.trim()).toBe("0.2.1");
   });
 
   it("scans the directory passed with --path", async () => {

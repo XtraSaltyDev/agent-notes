@@ -1,4 +1,4 @@
-import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, symlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 
@@ -33,6 +33,53 @@ describe("repository scanning", () => {
     const result = await detectPackageManager(rootDir);
 
     expect(result.packageManager).toBe("unknown");
+  });
+
+  it.each([
+    ["npm@10.8.2", "npm"],
+    ["pnpm@9.12.3", "pnpm"],
+    ["yarn@4.5.1", "yarn"]
+  ] as const)("detects %s from packageManager when lockfiles are absent", async (
+    packageManager,
+    expected
+  ) => {
+    const rootDir = await fixtureDir();
+    await writeJson(join(rootDir, "package.json"), {
+      packageManager,
+      scripts: {}
+    });
+
+    const result = await detectPackageManager(rootDir);
+
+    expect(result.packageManager).toBe(expected);
+    expect(result.warnings).toEqual([]);
+  });
+
+  it("reports unknown for unsupported packageManager values", async () => {
+    const rootDir = await fixtureDir();
+    await writeJson(join(rootDir, "package.json"), {
+      packageManager: "bun@1.1.0",
+      scripts: {}
+    });
+
+    const result = await detectPackageManager(rootDir);
+
+    expect(result.packageManager).toBe("unknown");
+    expect(result.warnings).toEqual([]);
+  });
+
+  it("prefers lockfiles over the packageManager field", async () => {
+    const rootDir = await fixtureDir();
+    await writeJson(join(rootDir, "package.json"), {
+      packageManager: "pnpm@9.12.3",
+      scripts: {}
+    });
+    await writeFile(join(rootDir, "package-lock.json"), "{}");
+
+    const result = await detectPackageManager(rootDir);
+
+    expect(result.packageManager).toBe("npm");
+    expect(result.lockfiles).toEqual(["package-lock.json"]);
   });
 
   it("warns when multiple lockfiles are present", async () => {
@@ -168,6 +215,76 @@ describe("repository scanning", () => {
       ]
     });
     expect(analysis.importantFiles).toContain("pnpm-workspace.yaml");
+  });
+
+  it("dedupes workspace packages discovered by overlapping patterns", async () => {
+    const rootDir = await fixtureDir();
+    await mkdir(join(rootDir, "packages", "core"), { recursive: true });
+    await writeJson(join(rootDir, "package.json"), {
+      workspaces: ["packages/*", "packages/**"],
+      scripts: { test: "vitest run" }
+    });
+    await writeJson(join(rootDir, "packages", "core", "package.json"), {
+      name: "@demo/core"
+    });
+
+    const analysis = await scanRepo(rootDir);
+
+    expect(analysis.workspaces).toEqual({
+      patterns: ["packages/*", "packages/**"],
+      packages: [{ path: "packages/core", name: "@demo/core" }]
+    });
+  });
+
+  it("does not traverse symlinked workspace directories outside the repo", async () => {
+    const rootDir = await fixtureDir();
+    const outsideDir = await fixtureDir();
+    await writeJson(join(rootDir, "package.json"), {
+      workspaces: ["linked-package"],
+      scripts: { test: "vitest run" }
+    });
+    await writeJson(join(outsideDir, "package.json"), {
+      name: "@demo/outside"
+    });
+    await symlink(outsideDir, join(rootDir, "linked-package"), "dir");
+
+    const analysis = await scanRepo(rootDir);
+
+    expect(analysis.workspaces).toEqual({
+      patterns: ["linked-package"],
+      packages: []
+    });
+  });
+
+  it("applies pnpm workspace exclusions to recursive package matches", async () => {
+    const rootDir = await fixtureDir();
+    await mkdir(join(rootDir, "packages", "core", "test", "fixture"), {
+      recursive: true
+    });
+    await writeJson(join(rootDir, "package.json"), {
+      scripts: { test: "vitest run" }
+    });
+    await writeFile(
+      join(rootDir, "pnpm-workspace.yaml"),
+      [
+        "packages:",
+        '  - "packages/**"',
+        '  - "!packages/**/test/**"'
+      ].join("\n")
+    );
+    await writeJson(join(rootDir, "packages", "core", "package.json"), {
+      name: "@demo/core"
+    });
+    await writeJson(join(rootDir, "packages", "core", "test", "fixture", "package.json"), {
+      name: "@demo/test-fixture"
+    });
+
+    const analysis = await scanRepo(rootDir);
+
+    expect(analysis.workspaces).toEqual({
+      patterns: ["packages/**", "!packages/**/test/**"],
+      packages: [{ path: "packages/core", name: "@demo/core" }]
+    });
   });
 
   it("infers common monorepo package directories without workspace config", async () => {

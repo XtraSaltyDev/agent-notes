@@ -1,4 +1,4 @@
-import { readdir, readFile } from "node:fs/promises";
+import { lstat, readdir, readFile } from "node:fs/promises";
 import { join, posix } from "node:path";
 
 import { directoryExists, fromRoot, readJsonFile } from "./fsUtils.js";
@@ -10,6 +10,12 @@ type PackageJson = {
 };
 
 const INFERRED_WORKSPACE_PATTERNS = ["apps/*", "packages/*", "services/*"];
+const SKIPPED_RECURSIVE_DIRECTORIES = new Set([
+  "node_modules",
+  ".git",
+  "dist",
+  "coverage"
+]);
 
 export async function detectWorkspaces(
   rootDir: string
@@ -24,12 +30,22 @@ export async function detectWorkspaces(
       ? configuredPatterns
       : await inferWorkspacePatterns(rootDir);
 
-  const packages = (
+  const includePatterns = patterns.filter((pattern) => !isExclusionPattern(pattern));
+  const excludePatterns = patterns
+    .filter(isExclusionPattern)
+    .map((pattern) => pattern.slice(1));
+  const detectedPackages = (
     await Promise.all(
-      patterns.flatMap((pattern) => detectPackagesForPattern(rootDir, pattern))
+      includePatterns.flatMap((pattern) => detectPackagesForPattern(rootDir, pattern))
     )
-  )
-    .flat()
+  ).flat();
+  const packages = dedupePackagesByPath(detectedPackages)
+    .filter(
+      (workspacePackage) =>
+        !excludePatterns.some((pattern) =>
+          workspacePathMatchesPattern(workspacePackage.path, pattern)
+        )
+    )
     .sort((left, right) => left.path.localeCompare(right.path));
 
   if (patterns.length === 0 || (configuredPatterns.length === 0 && packages.length === 0)) {
@@ -81,7 +97,7 @@ async function readPnpmWorkspacePatterns(rootDir: string): Promise<string[]> {
 
     const match = line.match(/^\s*-\s*["']?([^"']+)["']?\s*$/);
     const pattern = match?.[1]?.trim();
-    if (pattern && !pattern.startsWith("!")) {
+    if (pattern) {
       patterns.push(pattern);
     }
   }
@@ -105,6 +121,10 @@ async function detectPackagesForPattern(
   rootDir: string,
   pattern: string
 ): Promise<WorkspacePackage[]> {
+  if (isExclusionPattern(pattern)) {
+    return [];
+  }
+
   const packagePaths = await matchWorkspacePackagePaths(rootDir, pattern);
   const packages = await Promise.all(
     packagePaths.map(async (packagePath) => {
@@ -170,7 +190,7 @@ async function matchPatternSegments(
   }
 
   const nextPath = posixJoin(currentPath, segment);
-  if (!(await directoryExists(join(rootDir, nextPath)))) {
+  if (!(await workspaceDirectoryExists(join(rootDir, nextPath)))) {
     return [];
   }
 
@@ -178,12 +198,25 @@ async function matchPatternSegments(
 }
 
 async function listChildDirectories(path: string): Promise<string[]> {
-  if (!(await directoryExists(path))) {
+  if (!(await workspaceDirectoryExists(path))) {
     return [];
   }
 
   const entries = await readdir(path, { withFileTypes: true });
-  return entries.filter((entry) => entry.isDirectory()).map((entry) => entry.name);
+  const directories = await Promise.all(
+    entries.map(async (entry) => {
+      if (SKIPPED_RECURSIVE_DIRECTORIES.has(entry.name)) {
+        return undefined;
+      }
+
+      const entryPath = join(path, entry.name);
+      return (await workspaceDirectoryExists(entryPath)) ? entry.name : undefined;
+    })
+  );
+
+  return directories
+    .filter((directory) => directory !== undefined)
+    .sort((left, right) => left.localeCompare(right));
 }
 
 function posixJoin(left: string, right: string): string {
@@ -192,4 +225,64 @@ function posixJoin(left: string, right: string): string {
 
 function uniqueValues(values: string[]): string[] {
   return Array.from(new Set(values));
+}
+
+async function workspaceDirectoryExists(path: string): Promise<boolean> {
+  try {
+    return (await lstat(path)).isDirectory();
+  } catch {
+    return false;
+  }
+}
+
+function dedupePackagesByPath(packages: WorkspacePackage[]): WorkspacePackage[] {
+  const seen = new Set<string>();
+  const dedupedPackages: WorkspacePackage[] = [];
+
+  for (const workspacePackage of packages) {
+    if (seen.has(workspacePackage.path)) {
+      continue;
+    }
+
+    seen.add(workspacePackage.path);
+    dedupedPackages.push(workspacePackage);
+  }
+
+  return dedupedPackages;
+}
+
+function isExclusionPattern(pattern: string): boolean {
+  return pattern.startsWith("!");
+}
+
+function workspacePathMatchesPattern(workspacePath: string, pattern: string): boolean {
+  return matchPathSegments(
+    workspacePath.split("/").filter((segment) => segment.length > 0),
+    pattern.split("/").filter((segment) => segment.length > 0)
+  );
+}
+
+function matchPathSegments(pathSegments: string[], patternSegments: string[]): boolean {
+  if (patternSegments.length === 0) {
+    return pathSegments.length === 0;
+  }
+
+  const [patternSegment, ...remainingPatternSegments] = patternSegments;
+  if (patternSegment === "**") {
+    return (
+      matchPathSegments(pathSegments, remainingPatternSegments) ||
+      (pathSegments.length > 0 && matchPathSegments(pathSegments.slice(1), patternSegments))
+    );
+  }
+
+  const [pathSegment, ...remainingPathSegments] = pathSegments;
+  if (pathSegment === undefined) {
+    return false;
+  }
+
+  if (patternSegment === "*" || patternSegment === pathSegment) {
+    return matchPathSegments(remainingPathSegments, remainingPatternSegments);
+  }
+
+  return false;
 }

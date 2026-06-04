@@ -1,5 +1,9 @@
-import { fromRoot, pathExists } from "./fsUtils.js";
+import { fromRoot, pathExists, readJsonFile } from "./fsUtils.js";
 import type { PackageManager } from "../types.js";
+
+type PackageJson = {
+  packageManager?: string;
+};
 
 type Lockfile = {
   file: string;
@@ -11,6 +15,12 @@ const LOCKFILES: Lockfile[] = [
   { file: "pnpm-lock.yaml", manager: "pnpm" },
   { file: "yarn.lock", manager: "yarn" }
 ];
+
+const SUPPORTED_PACKAGE_MANAGERS = new Set<Exclude<PackageManager, "unknown">>([
+  "npm",
+  "pnpm",
+  "yarn"
+]);
 
 export type PackageManagerDetection = {
   packageManager?: PackageManager;
@@ -45,7 +55,8 @@ export async function detectPackageManager(
   }
 
   if (await pathExists(fromRoot(rootDir, "package.json"))) {
-    return { packageManager: "unknown", warnings, lockfiles: [] };
+    const packageManager = await detectPackageManagerField(rootDir);
+    return { packageManager, warnings, lockfiles: [] };
   }
 
   return { warnings, lockfiles: [] };
@@ -55,4 +66,23 @@ export function packageManagerLockfile(
   packageManager: PackageManager
 ): string | undefined {
   return LOCKFILES.find((lockfile) => lockfile.manager === packageManager)?.file;
+}
+
+async function detectPackageManagerField(rootDir: string): Promise<PackageManager> {
+  const packageJson = await readJsonFile<PackageJson>(fromRoot(rootDir, "package.json"));
+  const managerName = packageJson?.packageManager?.split("@")[0];
+
+  if (managerName && isSupportedPackageManager(managerName)) {
+    return managerName;
+  }
+
+  return "unknown";
+}
+
+function isSupportedPackageManager(
+  managerName: string
+): managerName is Exclude<PackageManager, "unknown"> {
+  return SUPPORTED_PACKAGE_MANAGERS.has(
+    managerName as Exclude<PackageManager, "unknown">
+  );
 }

@@ -1,5 +1,19 @@
 # Roadmap
 
+## Shipped In v0.2.1
+
+The `0.2.1` patch keeps scope tight around reliability and detection
+correctness.
+
+- Built `dist` before tests so clean checkouts can run `npm test`.
+- Exported update workflow helpers from the public library entry point.
+- Deduped workspace packages discovered by overlapping patterns.
+- Hardened workspace traversal so symlinked directories and obvious heavy
+  recursive directories are skipped.
+- Detected `npm`, `pnpm`, and `yarn` from `packageManager` when lockfiles are
+  absent.
+- Honored pnpm workspace `!` exclusions.
+
 ## Shipped In v0.2.0
 
 The `0.2.0` release kept the CLI boring-useful: it improved everyday workflows
