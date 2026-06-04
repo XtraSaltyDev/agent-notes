@@ -64,6 +64,7 @@ Check whether expected note files exist:
 ```sh
 agent-notes doctor
 agent-notes doctor --path ../other-repo
+agent-notes doctor --json
 ```
 
 ## Generated Files
@@ -101,6 +102,7 @@ generated content
 - `update --force`: overwrites expected generated files that do not have markers.
 - `doctor`: reports which expected files are present or missing.
 - `doctor --path <dir>`: checks expected files in a different directory.
+- `doctor --json`: prints file status as JSON for scripts and CI.
 
 ## v0.1 Detection Scope
 

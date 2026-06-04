@@ -19,7 +19,7 @@ describe("published CLI bin", () => {
 
     const { stdout } = await execFileAsync(binPath, ["--version"]);
 
-    expect(stdout.trim()).toBe("0.1.4");
+    expect(stdout.trim()).toBe("0.1.5");
   });
 
   it("scans the directory passed with --path", async () => {
@@ -140,6 +140,44 @@ describe("published CLI bin", () => {
     ).rejects.toMatchObject({
       code: 1,
       stdout: expect.stringContaining("present  AGENTS.md")
+    });
+  });
+
+  it("prints doctor results as JSON", async () => {
+    const rootDir = await mkdtemp(join(tmpdir(), "agent-notes-bin-"));
+    const targetDir = await mkdtemp(join(tmpdir(), "agent-notes-target-"));
+    const binPath = join(rootDir, "agent-notes");
+
+    await writeFile(join(targetDir, "AGENTS.md"), "manual notes");
+    await chmod(builtCli, 0o755);
+    await symlink(builtCli, binPath);
+
+    const { stdout } = await execFileAsync(
+      binPath,
+      ["doctor", "--json", "--path", targetDir],
+      { cwd: rootDir }
+    ).catch((error: unknown) => {
+      if (error && typeof error === "object" && "stdout" in error && "code" in error) {
+        return error as { stdout: string };
+      }
+      throw error;
+    });
+
+    expect(JSON.parse(stdout)).toEqual({
+      rootDir: targetDir,
+      files: [
+        { path: "AGENTS.md", exists: true },
+        { path: ".agent-notes/project.md", exists: false },
+        { path: ".agent-notes/commands.md", exists: false },
+        { path: ".agent-notes/conventions.md", exists: false },
+        { path: ".agent-notes/risks.md", exists: false }
+      ],
+      missing: [
+        ".agent-notes/project.md",
+        ".agent-notes/commands.md",
+        ".agent-notes/conventions.md",
+        ".agent-notes/risks.md"
+      ]
     });
   });
 });

@@ -27,7 +27,7 @@ export function createProgram(): Command {
   program
     .name("agent-notes")
     .description("Generate deterministic repository notes for coding agents.")
-    .version("0.1.4");
+    .version("0.1.5");
 
   program
     .command("scan")
@@ -111,7 +111,8 @@ export function createProgram(): Command {
     .command("doctor")
     .description("Check whether expected agent-notes files exist.")
     .option("--path <dir>", "Check a directory other than the current working directory.")
-    .action(async (options: { path?: string }) => {
+    .option("--json", "Print doctor results as JSON.")
+    .action(async (options: { json?: boolean; path?: string }) => {
       let rootDir: string;
       try {
         rootDir = await resolveRepoPath(options.path);
@@ -127,6 +128,24 @@ export function createProgram(): Command {
         }))
       );
       const missing = statuses.filter((status) => !status.exists);
+
+      if (options.json) {
+        console.log(
+          JSON.stringify(
+            {
+              rootDir,
+              files: statuses,
+              missing: missing.map((status) => status.path)
+            },
+            null,
+            2
+          )
+        );
+        if (missing.length > 0) {
+          process.exitCode = 1;
+        }
+        return;
+      }
 
       console.log("agent-notes doctor");
       for (const status of statuses) {
