@@ -8,7 +8,6 @@ tool into a large platform.
 - Improve monorepo detection, especially package manager workspaces and nested
   package boundaries.
 - Add config file support with `.agent-notes.json` for stable local preferences.
-- Improve README examples with realistic command output.
 - Continue hardening generated-file writes so the CLI only mutates expected
   repository paths.
 

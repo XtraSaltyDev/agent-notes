@@ -35,6 +35,20 @@ agent-notes scan
 agent-notes scan --json
 ```
 
+Example scan output:
+
+```text
+agent-notes scan
+Root: /path/to/repo
+Project types: Node.js
+Languages: TypeScript
+Frameworks: Vitest
+Package manager: npm
+Important files: package.json, tsconfig.json
+Commands: test (npm run test)
+Warnings: none detected
+```
+
 Scan another repository without changing directories:
 
 ```sh
@@ -66,6 +80,17 @@ Check whether expected note files exist:
 agent-notes doctor
 agent-notes doctor --path ../other-repo
 agent-notes doctor --json
+```
+
+Example doctor output:
+
+```text
+agent-notes doctor
+present  AGENTS.md
+present  .agent-notes/project.md
+present  .agent-notes/commands.md
+present  .agent-notes/conventions.md
+present  .agent-notes/risks.md
 ```
 
 ## Generated Files
@@ -129,7 +154,6 @@ The next releases are planned as boring-useful improvements:
 - Better monorepo detection
 - Generated-file provenance headers
 - `.agent-notes.json` config support
-- README examples with realistic output
 
 See [ROADMAP.md](ROADMAP.md) for scope notes.
 
