@@ -1,8 +1,8 @@
 # agent-notes
 
-`agent-notes` is a deterministic TypeScript CLI that scans a repository and
-generates lightweight Markdown context files for AI coding agents and human
-contributors.
+`agent-notes` is a deterministic TypeScript CLI and ESM library that scans a
+repository and generates lightweight Markdown context files for AI coding agents
+and human contributors.
 
 It does not call AI services, use external project APIs, or mutate hidden repo
 state. Generated files are plain Markdown so changes are easy to review.
@@ -10,7 +10,7 @@ state. Generated files are plain Markdown so changes are easy to review.
 ## Why
 
 AI coding agents work better when project context is explicit and reviewable.
-`agent-notes` keeps v0.1 intentionally small: it detects common Node.js and
+`agent-notes` keeps the scope intentionally small: it detects common Node.js and
 TypeScript project signals, then writes a conservative `AGENTS.md` plus a few
 supporting notes under `.agent-notes/`.
 
@@ -92,6 +92,22 @@ present  .agent-notes/project.md
 present  .agent-notes/commands.md
 present  .agent-notes/conventions.md
 present  .agent-notes/risks.md
+```
+
+## Library API
+
+The package also exposes ESM entry points for tools that want to reuse the same
+deterministic scan, generate, plan, and write pipeline:
+
+```ts
+import { generateFiles, planWrites, scanRepo, writeFiles } from "agent-notes";
+```
+
+The CLI program factory is available for integrations that need to compose the
+Commander program directly:
+
+```ts
+import { createProgram } from "agent-notes/cli";
 ```
 
 ## Generated Files
