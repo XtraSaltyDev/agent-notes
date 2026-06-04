@@ -7,8 +7,6 @@ tool into a large platform.
 
 - Improve monorepo detection, especially package manager workspaces and nested
   package boundaries.
-- Add a generated-file provenance header so reviewers can tell which files came
-  from `agent-notes` and which version produced them.
 - Add config file support with `.agent-notes.json` for stable local preferences.
 - Improve README examples with realistic command output.
 - Continue hardening generated-file writes so the CLI only mutates expected

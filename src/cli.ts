@@ -8,6 +8,7 @@ import { Command } from "commander";
 import { generateFiles } from "./generate/index.js";
 import { scanRepo } from "./scan/scanRepo.js";
 import type { RepoAnalysis, WritePlan } from "./types.js";
+import { AGENT_NOTES_VERSION } from "./version.js";
 import { planUpdates } from "./write/planUpdates.js";
 import { planWrites } from "./write/planWrites.js";
 import { writeUpdates } from "./write/writeUpdates.js";
@@ -27,7 +28,7 @@ export function createProgram(): Command {
   program
     .name("agent-notes")
     .description("Generate deterministic repository notes for coding agents.")
-    .version("0.1.5");
+    .version(AGENT_NOTES_VERSION);
 
   program
     .command("scan")
