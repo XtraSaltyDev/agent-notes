@@ -3,6 +3,7 @@ import type { PackageManager } from "../types.js";
 
 type PackageJson = {
   packageManager?: string;
+  scripts?: Record<string, string>;
 };
 
 type Lockfile = {
@@ -21,6 +22,9 @@ const SUPPORTED_PACKAGE_MANAGERS = new Set<Exclude<PackageManager, "unknown">>([
   "pnpm",
   "yarn"
 ]);
+
+const UNKNOWN_PACKAGE_MANAGER_WARNING =
+  "Package manager could not be detected. Script commands may need verification before use.";
 
 export type PackageManagerDetection = {
   packageManager?: PackageManager;
@@ -55,8 +59,14 @@ export async function detectPackageManager(
   }
 
   if (await pathExists(fromRoot(rootDir, "package.json"))) {
-    const packageManager = await detectPackageManagerField(rootDir);
-    return { packageManager, warnings, lockfiles: [] };
+    const packageJson = await readJsonFile<PackageJson>(fromRoot(rootDir, "package.json"));
+    const packageManager = detectPackageManagerField(packageJson);
+    const packageManagerWarnings =
+      packageManager === "unknown" && hasPackageScripts(packageJson)
+        ? [...warnings, UNKNOWN_PACKAGE_MANAGER_WARNING]
+        : warnings;
+
+    return { packageManager, warnings: packageManagerWarnings, lockfiles: [] };
   }
 
   return { warnings, lockfiles: [] };
@@ -68,8 +78,7 @@ export function packageManagerLockfile(
   return LOCKFILES.find((lockfile) => lockfile.manager === packageManager)?.file;
 }
 
-async function detectPackageManagerField(rootDir: string): Promise<PackageManager> {
-  const packageJson = await readJsonFile<PackageJson>(fromRoot(rootDir, "package.json"));
+function detectPackageManagerField(packageJson: PackageJson | undefined): PackageManager {
   const managerName = packageJson?.packageManager?.split("@")[0];
 
   if (managerName && isSupportedPackageManager(managerName)) {
@@ -77,6 +86,10 @@ async function detectPackageManagerField(rootDir: string): Promise<PackageManage
   }
 
   return "unknown";
+}
+
+function hasPackageScripts(packageJson: PackageJson | undefined): boolean {
+  return Object.keys(packageJson?.scripts ?? {}).length > 0;
 }
 
 function isSupportedPackageManager(

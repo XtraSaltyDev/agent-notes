@@ -1,6 +1,13 @@
-import { chmod, mkdtemp, readFile, symlink, writeFile } from "node:fs/promises";
+import {
+  chmod,
+  mkdtemp,
+  readFile,
+  realpath,
+  symlink,
+  writeFile
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
@@ -19,7 +26,7 @@ describe("published CLI bin", () => {
 
     const { stdout } = await execFileAsync(binPath, ["--version"]);
 
-    expect(stdout.trim()).toBe("0.2.1");
+    expect(stdout.trim()).toBe("0.2.3");
   });
 
   it("scans the directory passed with --path", async () => {
@@ -41,6 +48,57 @@ describe("published CLI bin", () => {
     expect(stdout).toContain(`Root: ${targetDir}`);
     expect(stdout).toContain("Project types: Node.js");
     expect(stdout).toContain("Commands: test (npm run test)");
+  });
+
+  it("uses .agent-notes.json path when --path is omitted", async () => {
+    const rootDir = await mkdtemp(join(tmpdir(), "agent-notes-bin-"));
+    const targetDir = await mkdtemp(join(rootDir, "target-"));
+    const binPath = join(rootDir, "agent-notes");
+
+    await writeFile(
+      join(rootDir, ".agent-notes.json"),
+      `${JSON.stringify({ path: basename(targetDir) }, null, 2)}\n`
+    );
+    await writeFile(
+      join(targetDir, "package.json"),
+      `${JSON.stringify({ scripts: { test: "vitest run" } }, null, 2)}\n`
+    );
+    await chmod(builtCli, 0o755);
+    await symlink(builtCli, binPath);
+
+    const expectedTargetDir = await realpath(targetDir);
+    const { stdout } = await execFileAsync(binPath, ["scan"], { cwd: rootDir });
+
+    expect(stdout).toContain(`Root: ${expectedTargetDir}`);
+    expect(stdout).toContain("Project types: Node.js");
+    expect(stdout).toContain("Commands: test (npm run test)");
+  });
+
+  it("prefers --path over .agent-notes.json path", async () => {
+    const rootDir = await mkdtemp(join(tmpdir(), "agent-notes-bin-"));
+    const targetDir = await mkdtemp(join(rootDir, "target-"));
+    const binPath = join(rootDir, "agent-notes");
+
+    await writeFile(
+      join(rootDir, ".agent-notes.json"),
+      `${JSON.stringify({ path: "missing-target" }, null, 2)}\n`
+    );
+    await writeFile(
+      join(targetDir, "package.json"),
+      `${JSON.stringify({ scripts: { test: "vitest run" } }, null, 2)}\n`
+    );
+    await chmod(builtCli, 0o755);
+    await symlink(builtCli, binPath);
+
+    const expectedTargetDir = await realpath(targetDir);
+    const { stdout } = await execFileAsync(
+      binPath,
+      ["scan", "--path", basename(targetDir)],
+      { cwd: rootDir }
+    );
+
+    expect(stdout).toContain(`Root: ${expectedTargetDir}`);
+    expect(stdout).toContain("Project types: Node.js");
   });
 
   it("prints a clean error when package.json is malformed", async () => {
@@ -150,6 +208,35 @@ describe("published CLI bin", () => {
     await expect(readFile(join(rootDir, "AGENTS.md"), "utf8")).resolves.toBe(original);
   });
 
+  it("uses .agent-notes.json update dryRun as a safe write default", async () => {
+    const rootDir = await mkdtemp(join(tmpdir(), "agent-notes-bin-"));
+    const binPath = join(rootDir, "agent-notes");
+    const original = [
+      "Manual intro",
+      "<!-- agent-notes:start -->",
+      "old generated content",
+      "<!-- agent-notes:end -->"
+    ].join("\n");
+
+    await writeFile(
+      join(rootDir, ".agent-notes.json"),
+      `${JSON.stringify({ update: { dryRun: true } }, null, 2)}\n`
+    );
+    await writeFile(
+      join(rootDir, "package.json"),
+      `${JSON.stringify({ scripts: { test: "vitest run" } }, null, 2)}\n`
+    );
+    await writeFile(join(rootDir, "AGENTS.md"), original);
+    await chmod(builtCli, 0o755);
+    await symlink(builtCli, binPath);
+
+    const { stdout } = await execFileAsync(binPath, ["update"], { cwd: rootDir });
+
+    expect(stdout).toContain("agent-notes update dry-run");
+    expect(stdout).toContain("updated: 1");
+    await expect(readFile(join(rootDir, "AGENTS.md"), "utf8")).resolves.toBe(original);
+  });
+
   it("initializes the directory passed with init --path", async () => {
     const rootDir = await mkdtemp(join(tmpdir(), "agent-notes-bin-"));
     const targetDir = await mkdtemp(join(tmpdir(), "agent-notes-target-"));
@@ -173,6 +260,59 @@ describe("published CLI bin", () => {
     await expect(
       readFile(join(targetDir, ".agent-notes", "commands.md"), "utf8")
     ).resolves.toContain("test");
+  });
+
+  it("uses .agent-notes.json init dryRun as a safe write default", async () => {
+    const rootDir = await mkdtemp(join(tmpdir(), "agent-notes-bin-"));
+    const binPath = join(rootDir, "agent-notes");
+
+    await writeFile(
+      join(rootDir, ".agent-notes.json"),
+      `${JSON.stringify({ init: { dryRun: true } }, null, 2)}\n`
+    );
+    await writeFile(
+      join(rootDir, "package.json"),
+      `${JSON.stringify({ scripts: { test: "vitest run" } }, null, 2)}\n`
+    );
+    await chmod(builtCli, 0o755);
+    await symlink(builtCli, binPath);
+
+    const { stdout } = await execFileAsync(binPath, ["init"], { cwd: rootDir });
+
+    expect(stdout).toContain("agent-notes init dry-run");
+    await expect(readFile(join(rootDir, "AGENTS.md"), "utf8")).rejects.toMatchObject({
+      code: "ENOENT"
+    });
+  });
+
+  it("rejects force defaults in .agent-notes.json", async () => {
+    const rootDir = await mkdtemp(join(tmpdir(), "agent-notes-bin-"));
+    const binPath = join(rootDir, "agent-notes");
+
+    await writeFile(
+      join(rootDir, ".agent-notes.json"),
+      `${JSON.stringify({ init: { force: true } }, null, 2)}\n`
+    );
+    await writeFile(join(rootDir, "AGENTS.md"), "manual notes");
+    await chmod(builtCli, 0o755);
+    await symlink(builtCli, binPath);
+
+    const error = await execFileAsync(binPath, ["init"], { cwd: rootDir }).then(
+      () => undefined,
+      (error: unknown) => error as { code: number; stderr: string }
+    );
+
+    expect(error).toBeDefined();
+    if (!error) {
+      throw new Error("Expected init to reject force configured in .agent-notes.json.");
+    }
+    expect(error.code).toBe(1);
+    expect(error.stderr).toContain(
+      "Config key init.force is not supported. Use --force explicitly."
+    );
+    await expect(readFile(join(rootDir, "AGENTS.md"), "utf8")).resolves.toBe(
+      "manual notes"
+    );
   });
 
   it("names files overwritten by init --force", async () => {

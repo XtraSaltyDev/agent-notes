@@ -6,6 +6,9 @@ import { detectCommands } from "../src/scan/detectCommands.js";
 import { detectPackageManager } from "../src/scan/detectPackageManager.js";
 import { scanRepo } from "../src/scan/scanRepo.js";
 
+const UNKNOWN_PACKAGE_MANAGER_WARNING =
+  "Package manager could not be detected. Script commands may need verification before use.";
+
 async function fixtureDir(): Promise<string> {
   return mkdtemp(join(tmpdir(), "agent-notes-scan-"));
 }
@@ -68,6 +71,25 @@ describe("repository scanning", () => {
     expect(result.warnings).toEqual([]);
   });
 
+  it("warns when scripts exist but the package manager is unknown", async () => {
+    const rootDir = await fixtureDir();
+    await writeJson(join(rootDir, "package.json"), {
+      scripts: {
+        test: "vitest run"
+      }
+    });
+
+    const analysis = await scanRepo(rootDir);
+
+    expect(analysis.packageManager).toBe("unknown");
+    expect(analysis.commands).toContainEqual({
+      name: "test",
+      command: "npm run test",
+      source: "package.json"
+    });
+    expect(analysis.warnings).toContain(UNKNOWN_PACKAGE_MANAGER_WARNING);
+  });
+
   it("prefers lockfiles over the packageManager field", async () => {
     const rootDir = await fixtureDir();
     await writeJson(join(rootDir, "package.json"), {
@@ -114,6 +136,23 @@ describe("repository scanning", () => {
       { name: "test", command: "npm run test", source: "package.json" },
       { name: "dev", command: "npm run dev", source: "package.json" }
     ]);
+  });
+
+  it("detects verify scripts from package.json", async () => {
+    const rootDir = await fixtureDir();
+    await writeJson(join(rootDir, "package.json"), {
+      scripts: {
+        verify: "npm run build && npm run test"
+      }
+    });
+
+    const commands = await detectCommands(rootDir, "npm");
+
+    expect(commands).toContainEqual({
+      name: "verify",
+      command: "npm run verify",
+      source: "package.json"
+    });
   });
 
   it("uses the matching lockfile as the install source when present", async () => {

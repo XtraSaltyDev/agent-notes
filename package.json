@@ -1,6 +1,6 @@
 {
   "name": "agent-notes",
-  "version": "0.2.1",
+  "version": "0.2.3",
   "description": "Deterministic repo notes for AI coding agents and human contributors.",
   "type": "module",
   "main": "dist/index.js",
@@ -38,6 +38,7 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
+    "verify": "npm run build && npm run test && npm run typecheck && npm run lint",
     "format": "prettier --write ."
   },
   "keywords": [

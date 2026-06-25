@@ -1,5 +1,30 @@
 # Roadmap
 
+## Shipped In v0.2.3
+
+The `0.2.3` patch adds deterministic `.agent-notes.json` config support without
+changing generated output or write safety defaults.
+
+- Added `.agent-notes.json` support for stable `path`, `init.dryRun`, and
+  `update.dryRun` defaults.
+- Kept command-line flags higher precedence than config values.
+- Rejected unsupported config keys instead of silently ignoring typos.
+- Kept `--force` as an explicit CLI-only overwrite action.
+
+## Shipped In v0.2.2
+
+The `0.2.2` patch keeps output deterministic and improves generated notes for
+Codex-style iterative repair loops.
+
+- Added a project-level `npm run verify` script that runs build, test,
+  typecheck, and lint.
+- Added a default agent operating loop to generated `AGENTS.md`.
+- Added a recommended verification loop to generated `.agent-notes/commands.md`.
+- Preferred detected `verify` scripts before falling back to detected
+  typecheck, lint, test, and build scripts.
+- Kept the existing generated command table and did not broaden monorepo
+  detection.
+
 ## Shipped In v0.2.1
 
 The `0.2.1` patch keeps scope tight around reliability and detection
@@ -28,7 +53,6 @@ without widening the tool into a large platform.
 - High priority: keep deepening monorepo detection beyond the current
   `package.json`, `pnpm-workspace.yaml`, `*`, `**`, and common-directory support,
   especially for mixed-language repos and non-Node package boundaries.
-- Add config file support with `.agent-notes.json` for stable local preferences.
 - Expand `doctor` beyond presence checks: report managed marker status, generated
   section version drift, and stale generated content compared with the current
   scan.

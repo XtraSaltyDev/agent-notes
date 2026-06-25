@@ -6,7 +6,16 @@ type PackageJson = {
   scripts?: Record<string, string>;
 };
 
-const COMMON_SCRIPTS = ["build", "test", "lint", "format", "dev", "start", "typecheck"];
+const COMMON_SCRIPTS = [
+  "verify",
+  "build",
+  "test",
+  "lint",
+  "format",
+  "dev",
+  "start",
+  "typecheck"
+];
 
 export async function detectCommands(
   rootDir: string,

@@ -5,8 +5,10 @@ import { fileURLToPath } from "node:url";
 
 import { Command } from "commander";
 
+import { loadAgentNotesConfig } from "./config.js";
 import { generateFiles } from "./generate/index.js";
 import { scanRepo } from "./scan/scanRepo.js";
+import type { AgentNotesConfig } from "./config.js";
 import type { RepoAnalysis, WritePlan } from "./types.js";
 import { AGENT_NOTES_VERSION } from "./version.js";
 import { planUpdates } from "./write/planUpdates.js";
@@ -37,7 +39,8 @@ export function createProgram(): Command {
     .option("--json", "Print analysis as JSON.")
     .action((options: { json?: boolean; path?: string }) =>
       runCommandAction(program, async () => {
-        const rootDir = await resolveRepoPath(options.path);
+        const config = await loadAgentNotesConfig();
+        const rootDir = await resolveConfiguredRepoPath(options, config);
 
         const analysis = await scanRepo(rootDir);
         if (options.json) {
@@ -60,12 +63,13 @@ export function createProgram(): Command {
     .option("--force", "Overwrite existing generated files.")
     .action((options: { dryRun?: boolean; force?: boolean; path?: string }) =>
       runCommandAction(program, async () => {
-        const rootDir = await resolveRepoPath(options.path);
+        const config = await loadAgentNotesConfig();
+        const rootDir = await resolveConfiguredRepoPath(options, config);
 
         const analysis = await scanRepo(rootDir);
         const files = generateFiles(analysis);
         const plan = await planWrites(rootDir, files, {
-          dryRun: options.dryRun,
+          dryRun: options.dryRun ?? config.init?.dryRun,
           force: options.force
         });
 
@@ -90,12 +94,13 @@ export function createProgram(): Command {
     .option("--force", "Overwrite expected generated files that do not have markers.")
     .action((options: { dryRun?: boolean; force?: boolean; path?: string }) =>
       runCommandAction(program, async () => {
-        const rootDir = await resolveRepoPath(options.path);
+        const config = await loadAgentNotesConfig();
+        const rootDir = await resolveConfiguredRepoPath(options, config);
 
         const analysis = await scanRepo(rootDir);
         const files = generateFiles(analysis);
         const plan = await planUpdates(rootDir, files, {
-          dryRun: options.dryRun,
+          dryRun: options.dryRun ?? config.update?.dryRun,
           force: options.force
         });
 
@@ -116,7 +121,8 @@ export function createProgram(): Command {
     .option("--json", "Print doctor results as JSON.")
     .action((options: { json?: boolean; path?: string }) =>
       runCommandAction(program, async () => {
-        const rootDir = await resolveRepoPath(options.path);
+        const config = await loadAgentNotesConfig();
+        const rootDir = await resolveConfiguredRepoPath(options, config);
 
         const statuses = await Promise.all(
           EXPECTED_FILES.map(async (path) => ({
@@ -255,6 +261,13 @@ async function fileExists(path: string): Promise<boolean> {
 
 function joinValues(values: string[]): string {
   return values.length > 0 ? values.join(", ") : "none detected";
+}
+
+async function resolveConfiguredRepoPath(
+  options: { path?: string },
+  config: AgentNotesConfig
+): Promise<string> {
+  return resolveRepoPath(options.path ?? config.path);
 }
 
 async function resolveRepoPath(path?: string): Promise<string> {
