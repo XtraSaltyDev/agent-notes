@@ -53,5 +53,22 @@ jobs:
           echo "::add-mask::$token"
           echo "NPM_ID_TOKEN=$token" >> "$GITHUB_ENV"
 
+      - name: Exchange npm OIDC token
+        run: |
+          response="$(curl -sS -X POST \
+            -H "Authorization: Bearer ${NPM_ID_TOKEN}" \
+            -w "\n%{http_code}" \
+            "https://registry.npmjs.org/-/npm/v1/oidc/token/exchange/package/agent-notes")"
+          status="$(printf '%s' "$response" | tail -n 1)"
+          body="$(printf '%s' "$response" | sed '$d')"
+          if [ "$status" != "201" ]; then
+            echo "OIDC exchange failed with HTTP $status"
+            echo "$body"
+            exit 1
+          fi
+          token="$(node -e "process.stdout.write(JSON.parse(process.argv[1]).token)" "$body")"
+          echo "::add-mask::$token"
+          echo "//registry.npmjs.org/:_authToken=$token" > "$HOME/.npmrc"
+
       - name: Publish
         run: npm publish --provenance
